@@ -81,7 +81,7 @@ export default function SignupPage() {
     try {
       if (isSuperAdmin) {
         // Super admin signup via setup endpoint
-        console.log("Attempting super admin signup to:", "http://localhost:8080/api/admin/setup/create-super-admin");
+        console.log("Attempting super admin signup to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com'}/api/admin/setup/create-super-admin`);
         const response = await apiClient.post("/api/admin/setup/create-super-admin", {
           email: formData.email,
           password: formData.password,
@@ -94,7 +94,7 @@ export default function SignupPage() {
         navigate("/login");
       } else {
         // Regular user signup
-        console.log("Attempting signup to:", "http://localhost:8080/api/auth/signup");
+        console.log("Attempting signup to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com'}/api/auth/signup`);
         const response = await apiClient.post("/api/auth/signup", {
           fullName: formData.fullName,
           email: formData.email,
