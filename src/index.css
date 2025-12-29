@@ -1,0 +1,175 @@
+@import "@fontsource-variable/inter";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Warm, calm neutral palette */
+    --background: 40 20% 98%;
+    --foreground: 220 15% 18%;
+
+    --card: 40 15% 97%;
+    --card-foreground: 220 15% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 18%;
+
+    /* Muted slate accent - subtle, professional */
+    --primary: 215 20% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 10% 94%;
+    --secondary-foreground: 220 15% 25%;
+
+    --muted: 220 10% 92%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 215 15% 90%;
+    --accent-foreground: 220 15% 20%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 90%;
+    --input: 220 10% 92%;
+    --ring: 215 20% 45%;
+
+    --radius: 0.5rem;
+
+    /* Chat-specific tokens */
+    --chat-user-bg: 220 10% 96%;
+    --chat-assistant-bg: 40 15% 99%;
+    --chat-input-bg: 0 0% 100%;
+    --chat-input-border: 220 10% 88%;
+    --chat-input-focus: 215 20% 45%;
+    --chat-hover: 220 10% 95%;
+    --chat-active: 215 15% 92%;
+    --chat-divider: 220 10% 92%;
+    --chat-timestamp: 220 10% 55%;
+
+    /* Sidebar tokens */
+    --sidebar-background: 40 15% 97%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-primary: 215 20% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 10% 94%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 220 10% 90%;
+    --sidebar-ring: 215 20% 45%;
+    --sidebar-hover: 220 10% 92%;
+    --sidebar-active: 215 15% 88%;
+
+    /* Typography */
+    --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
+  }
+
+  .dark {
+    /* Soft dark greys - ChatGPT-quality dark mode */
+    --background: 220 15% 10%;
+    --foreground: 220 10% 92%;
+
+    --card: 220 15% 12%;
+    --card-foreground: 220 10% 92%;
+
+    --popover: 220 15% 11%;
+    --popover-foreground: 220 10% 92%;
+
+    --primary: 215 25% 60%;
+    --primary-foreground: 220 15% 10%;
+
+    --secondary: 220 12% 18%;
+    --secondary-foreground: 220 10% 85%;
+
+    --muted: 220 12% 16%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 220 12% 18%;
+    --accent-foreground: 220 10% 90%;
+
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 12% 18%;
+    --input: 220 12% 16%;
+    --ring: 215 25% 60%;
+
+    /* Chat-specific dark tokens */
+    --chat-user-bg: 220 12% 14%;
+    --chat-assistant-bg: 220 15% 11%;
+    --chat-input-bg: 220 15% 13%;
+    --chat-input-border: 220 12% 20%;
+    --chat-input-focus: 215 25% 55%;
+    --chat-hover: 220 12% 16%;
+    --chat-active: 215 15% 20%;
+    --chat-divider: 220 12% 18%;
+    --chat-timestamp: 220 10% 50%;
+
+    /* Sidebar dark tokens */
+    --sidebar-background: 220 15% 8%;
+    --sidebar-foreground: 220 10% 85%;
+    --sidebar-primary: 215 25% 60%;
+    --sidebar-primary-foreground: 220 15% 10%;
+    --sidebar-accent: 220 12% 14%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 12% 15%;
+    --sidebar-ring: 215 25% 60%;
+    --sidebar-hover: 220 12% 14%;
+    --sidebar-active: 215 15% 18%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer utilities {
+  /* Smooth scrollbar for chat */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Chat message reading width */
+  .chat-width {
+    max-width: 48rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* Subtle focus ring */
+  .focus-subtle {
+    @apply outline-none ring-1 ring-ring/30 ring-offset-2 ring-offset-background;
+  }
+}
