@@ -235,14 +235,6 @@ export default function LoginPage() {
           <Play className="h-4 w-4" />
           Watch a quick demo
         </a>
-
-        {/* Sign up link */}
-        <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <Link to="/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );
