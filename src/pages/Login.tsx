@@ -200,7 +200,7 @@ export default function LoginPage() {
         </div>
 
         {/* Google */}
-        <button
+        {/* <button
           type="button"
           className="w-full py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm font-medium text-foreground hover:bg-chat-hover transition-colors flex items-center justify-center gap-2"
         >
@@ -223,10 +223,10 @@ export default function LoginPage() {
             />
           </svg>
           Continue with Google
-        </button>
+        </button> */}
 
         {/* Demo link */}
-        <a
+        {/* <a
           href="https://youtube.com"
           target="_blank"
           rel="noopener noreferrer"
@@ -234,7 +234,15 @@ export default function LoginPage() {
         >
           <Play className="h-4 w-4" />
           Watch a quick demo
-        </a>
+        </a> */}
+
+        {/* Sign up link */}
+        {/* <p className="text-center text-sm text-muted-foreground">
+          Don't have an account?{" "}
+          <Link to="/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
+            Sign up
+          </Link>
+        </p> */}
       </div>
     </div>
   );
