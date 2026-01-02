@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use environment variable for API URL, default to production
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com';
+export const API_BASE_URL = 'http://localhost:8080';
 
 // Get token from localStorage
 const getToken = () => {

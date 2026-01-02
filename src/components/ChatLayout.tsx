@@ -4,11 +4,12 @@ import { ChatMessage, TypingIndicator } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { EmptyState } from "./EmptyState";
 import { Conversation, Message } from "@/types/chat";
-import { Menu, Lock, Download } from "lucide-react";
+import { Menu, Lock, Download, AlertTriangle, X } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { chatClient, adminClient } from "@/lib/api-client";
+import { Link } from "react-router-dom";
 
 // Generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -27,6 +28,12 @@ export function ChatLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [usageData, setUsageData] = useState<{
+    messagesUsed: number;
+    messagesLimit: number;
+    percentUsed: number;
+  } | null>(null);
+  const [dismissedWarning, setDismissedWarning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const activeConversation = conversations.find(
@@ -45,7 +52,33 @@ export function ChatLayout() {
   useEffect(() => {
     loadConversations();
     loadUserRole();
+    loadUsageData();
+    
+    // Refresh usage data every 30 seconds
+    const interval = setInterval(() => {
+      loadUsageData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
+  
+  const loadUsageData = async () => {
+    try {
+      const response = await chatClient.get("/chat/usage");
+      const data = response.data;
+      setUsageData({
+        messagesUsed: data.messagesUsed || 0,
+        messagesLimit: data.messagesLimit || 15,
+        percentUsed: data.percentUsed || 0,
+      });
+      // Reset dismissed warning if usage drops below 80%
+      if (data.percentUsed < 80) {
+        setDismissedWarning(false);
+      }
+    } catch (error: any) {
+      console.error("Failed to load usage data:", error);
+    }
+  };
 
   const loadUserRole = async () => {
     try {
@@ -220,6 +253,12 @@ export function ChatLayout() {
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
+    
+    // Check usage limit before sending
+    if (usageData && usageData.percentUsed >= 100) {
+      toast.error(`You've reached your monthly message limit of ${usageData.messagesLimit} messages. Please contact your administrator to upgrade your plan.`);
+      return;
+    }
 
     const userMessage: Message = {
       id: generateId(),
@@ -313,23 +352,108 @@ export function ChatLayout() {
       });
 
       const replyText = response.data?.reply || "No response received.";
+      
+      // Refresh usage data after sending message
+      loadUsageData();
 
-      // Update assistant message with response - replace the placeholder
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === conversationId
-            ? {
-                ...c,
-                messages: c.messages.map((m) =>
-                  m.id === assistantMessageId
-                    ? { ...m, content: replyText }
-                    : m
-                ),
-                updatedAt: new Date(),
-              }
-            : c
-        )
-      );
+      // Start typing effect - show response word by word for better UX
+      const fullText = replyText;
+      let currentIndex = 0;
+      const typingSpeed = 20; // milliseconds per word chunk (faster = 10-15, slower = 30-50)
+      let typingTimeout: NodeJS.Timeout | null = null;
+      
+      const typeNextChunk = () => {
+        if (currentIndex < fullText.length) {
+          // Find next word boundary for smoother typing
+          let nextIndex = currentIndex;
+          
+          // Skip whitespace at start
+          while (nextIndex < fullText.length && /\s/.test(fullText[nextIndex])) {
+            nextIndex++;
+          }
+          
+          // Find end of current word or chunk
+          const spaceIndex = fullText.indexOf(' ', nextIndex);
+          const newlineIndex = fullText.indexOf('\n', nextIndex);
+          
+          if (newlineIndex !== -1 && (spaceIndex === -1 || newlineIndex < spaceIndex)) {
+            // Include newline and next word
+            nextIndex = newlineIndex + 1;
+            const nextWordSpace = fullText.indexOf(' ', nextIndex);
+            if (nextWordSpace !== -1) {
+              nextIndex = nextWordSpace + 1;
+            } else {
+              nextIndex = fullText.length;
+            }
+          } else if (spaceIndex !== -1) {
+            // Include current word and space
+            nextIndex = spaceIndex + 1;
+            // Try to include next word too for faster typing
+            const nextWordEnd = fullText.indexOf(' ', nextIndex);
+            if (nextWordEnd !== -1 && nextWordEnd - nextIndex < 15) {
+              nextIndex = nextWordEnd + 1;
+            }
+          } else {
+            // Last chunk
+            nextIndex = fullText.length;
+          }
+          
+          const displayText = fullText.substring(0, nextIndex);
+          currentIndex = nextIndex;
+          
+          // Update assistant message with partial text
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === conversationId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === assistantMessageId
+                        ? { ...m, content: displayText }
+                        : m
+                    ),
+                    updatedAt: new Date(),
+                  }
+                : c
+            )
+          );
+          
+          // Auto-scroll during typing
+          scrollToBottom();
+          
+          // Continue typing
+          typingTimeout = setTimeout(typeNextChunk, typingSpeed);
+        } else {
+          // Typing complete - ensure full text is shown
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === conversationId
+                ? {
+                    ...c,
+                    messages: c.messages.map((m) =>
+                      m.id === assistantMessageId
+                        ? { ...m, content: fullText }
+                        : m
+                    ),
+                    updatedAt: new Date(),
+                  }
+                : c
+            )
+          );
+          setIsStreaming(false);
+          scrollToBottom();
+        }
+      };
+      
+      // Start typing effect immediately
+      typeNextChunk();
+      
+      // Cleanup function to stop typing if component unmounts or new message starts
+      return () => {
+        if (typingTimeout) {
+          clearTimeout(typingTimeout);
+        }
+      };
 
       // Update conversation ID if it was returned (shouldn't happen, but handle it)
       if (response.data?.conversationId && conversationId !== String(response.data.conversationId)) {
@@ -367,7 +491,16 @@ export function ChatLayout() {
       }
     } catch (error: any) {
       console.error("Failed to send message:", error);
-      toast.error(error?.response?.data?.message || "Failed to send message");
+      
+      // Handle usage limit error (429)
+      if (error?.response?.status === 429) {
+        const errorMessage = error?.response?.data?.message || "Monthly message limit reached";
+        toast.error(errorMessage);
+        // Refresh usage data to update UI
+        loadUsageData();
+      } else {
+        toast.error(error?.response?.data?.message || error?.response?.data?.error || "Failed to send message");
+      }
       
       // Remove the placeholder assistant message on error
       setConversations((prev) =>
@@ -380,8 +513,23 @@ export function ChatLayout() {
             : c
         )
       );
-    } finally {
+      
+      // Remove user message if it was added optimistically
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === conversationId
+            ? {
+                ...c,
+                messages: c.messages.filter((m) => m.role !== "user" || m.content !== content),
+              }
+            : c
+        )
+      );
       setIsStreaming(false);
+    } finally {
+      // Only set streaming to false if typing effect hasn't completed yet
+      // (typing effect will set it to false when done)
+      // This ensures errors still stop streaming
     }
   };
 
@@ -458,11 +606,74 @@ export function ChatLayout() {
             <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm">
               <ThemeToggle />
             </div>
-            <EmptyState onSelectPrompt={handleSendMessage} />
-            <ChatInput onSend={handleSendMessage} disabled={isStreaming} />
+            <EmptyState 
+              onSelectPrompt={handleSendMessage} 
+              disabled={usageData?.percentUsed >= 100}
+            />
+            <ChatInput 
+              onSend={handleSendMessage} 
+              disabled={isStreaming || (usageData?.percentUsed >= 100)}
+              placeholder={usageData?.percentUsed >= 100 
+                ? "Monthly message limit reached. Contact your administrator to upgrade."
+                : "What's on your mind?"}
+            />
           </>
         ) : (
           <>
+            {/* Usage Warning Banner */}
+            {usageData && usageData.percentUsed >= 80 && !dismissedWarning && (
+              <div className={cn(
+                "mx-4 md:mx-6 mt-4 p-3 rounded-lg border space-y-2 animate-fade-in",
+                usageData.percentUsed >= 100
+                  ? "bg-destructive/10 border-destructive/20"
+                  : "bg-yellow-500/10 border-yellow-500/20"
+              )}>
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className={cn(
+                    "h-4 w-4 flex-shrink-0 mt-0.5",
+                    usageData.percentUsed >= 100
+                      ? "text-destructive"
+                      : "text-yellow-600 dark:text-yellow-400"
+                  )} />
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className={cn(
+                      "text-sm font-medium",
+                      usageData.percentUsed >= 100
+                        ? "text-destructive"
+                        : "text-yellow-900 dark:text-yellow-100"
+                    )}>
+                      {usageData.percentUsed >= 100 
+                        ? "Usage limit reached"
+                        : "Approaching usage limit"}
+                    </p>
+                    <p className={cn(
+                      "text-xs leading-relaxed",
+                      usageData.percentUsed >= 100
+                        ? "text-destructive/90"
+                        : "text-yellow-800 dark:text-yellow-200"
+                    )}>
+                      {usageData.percentUsed >= 100 
+                        ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages."
+                        : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
+                    </p>
+                    <Link
+                      to="/settings"
+                      className="text-xs font-medium text-primary hover:text-primary/80 underline"
+                    >
+                      View usage details
+                    </Link>
+                  </div>
+                  <button
+                    onClick={() => setDismissedWarning(true)}
+                    className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                    aria-label="Dismiss warning"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+            
             {/* Messages */}
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {activeConversation.messages
@@ -486,8 +697,11 @@ export function ChatLayout() {
             {/* Input */}
             <ChatInput 
               onSend={handleSendMessage} 
-              disabled={isStreaming}
-              showPromptChips={activeConversation.messages.length < 3}
+              disabled={isStreaming || (usageData?.percentUsed >= 100)}
+              placeholder={usageData?.percentUsed >= 100 
+                ? "Monthly message limit reached. Contact your administrator to upgrade."
+                : "What's on your mind?"}
+              showPromptChips={activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
               onSelectPrompt={handleSendMessage}
             />
           </>

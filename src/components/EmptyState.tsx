@@ -2,6 +2,7 @@ import { MessageCircle, Lock, Sparkles } from "lucide-react";
 
 interface EmptyStateProps {
   onSelectPrompt: (prompt: string) => void;
+  disabled?: boolean;
 }
 
 const examplePrompts = [
@@ -11,7 +12,7 @@ const examplePrompts = [
   { text: "Explore leadership approach", icon: "💡" },
 ];
 
-export function EmptyState({ onSelectPrompt }: EmptyStateProps) {
+export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12">
       <div className="max-w-xl w-full text-center space-y-8">
@@ -41,8 +42,9 @@ export function EmptyState({ onSelectPrompt }: EmptyStateProps) {
             {examplePrompts.map((prompt, index) => (
               <button
                 key={index}
-                onClick={() => onSelectPrompt(prompt.text)}
-                className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-chat-input-border bg-chat-input-bg hover:bg-chat-hover hover:border-chat-input-focus/50 transition-all duration-150 text-left"
+                onClick={() => !disabled && onSelectPrompt(prompt.text)}
+                disabled={disabled}
+                className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-chat-input-border bg-chat-input-bg hover:bg-chat-hover hover:border-chat-input-focus/50 transition-all duration-150 text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-chat-input-bg disabled:hover:border-chat-input-border"
               >
                 <span className="text-lg">{prompt.icon}</span>
                 <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors">

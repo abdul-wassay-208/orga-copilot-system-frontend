@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Check } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
+type SignupStep = "form" | "otp";
+
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [step, setStep] = useState<SignupStep>("form");
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
@@ -15,6 +18,7 @@ export default function SignupPage() {
     confirmPassword: "",
     acceptTerms: false,
   });
+  const [otpCode, setOtpCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -65,13 +69,13 @@ export default function SignupPage() {
   };
 
   const isFormValid =
-    (!isSuperAdmin || formData.fullName.trim()) && // Super admin doesn't need fullName
+    (!isSuperAdmin || formData.fullName.trim()) &&
     formData.email &&
     formData.password.length >= 8 &&
     formData.password === formData.confirmPassword &&
-    (!isSuperAdmin || formData.acceptTerms); // Super admin might not need terms
+    (!isSuperAdmin || formData.acceptTerms);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -80,8 +84,7 @@ export default function SignupPage() {
 
     try {
       if (isSuperAdmin) {
-        // Super admin signup via setup endpoint
-        console.log("Attempting super admin signup to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com'}/api/admin/setup/create-super-admin`);
+        // Super admin signup via setup endpoint (no OTP required)
         const response = await apiClient.post("/api/admin/setup/create-super-admin", {
           email: formData.email,
           password: formData.password,
@@ -89,36 +92,36 @@ export default function SignupPage() {
           tenantDomain: "platform",
         });
 
-        console.log("Super admin signup response:", response.data);
         toast.success("Super admin account created! Please log in.");
         navigate("/login");
       } else {
-        // Regular user signup
-        console.log("Attempting signup to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com'}/api/auth/signup`);
+        // Regular user signup - requires OTP verification
         const response = await apiClient.post("/api/auth/signup", {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
         });
 
-        console.log("Signup response:", response.data);
-
-        // Store token if provided (auto-login after signup)
-        if (response.data.token) {
-          localStorage.setItem("token", response.data.token);
-          localStorage.setItem("authToken", response.data.token);
-          toast.success("Account created successfully!");
-          navigate("/chat");
+        if (response.data.requiresVerification) {
+          toast.success("Account created! Please check your email for the verification code.");
+          setStep("otp");
         } else {
-          toast.success("Account created! Please log in.");
-          navigate("/login");
+          // Fallback if OTP is not required
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+            localStorage.setItem("authToken", response.data.token);
+            toast.success("Account created successfully!");
+            navigate("/chat");
+          } else {
+            toast.success("Account created! Please log in.");
+            navigate("/login");
+          }
         }
       }
     } catch (error: any) {
       console.error("Signup error:", error);
       const errorMessage = error?.response?.data?.message || "Failed to create account";
       
-      // Set specific field errors if available
       if (errorMessage.includes("Email already in use")) {
         setErrors({ email: errorMessage });
       } else {
@@ -130,6 +133,151 @@ export default function SignupPage() {
     }
   };
 
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!otpCode || otpCode.length !== 6) {
+      setErrors({ otp: "Please enter a valid 6-digit code" });
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const response = await apiClient.post("/api/auth/verify-otp", {
+        email: formData.email,
+        code: otpCode,
+      });
+
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("authToken", response.data.token);
+        toast.success("Email verified! Welcome to Evo Associates.");
+        navigate("/chat");
+      } else {
+        toast.error("Verification failed. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("OTP verification error:", error);
+      const errorMessage = error?.response?.data?.message || "Invalid verification code";
+      setErrors({ otp: errorMessage });
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    try {
+      await apiClient.post("/api/auth/resend-otp", {
+        email: formData.email,
+      });
+      toast.success("Verification code resent to your email");
+      setOtpCode("");
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || "Failed to resend code";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // OTP Verification Step
+  if (step === "otp") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+        <div className="w-full max-w-sm space-y-8">
+          <div className="text-center space-y-2">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+              <Mail className="h-6 w-6 text-primary" />
+            </div>
+            <h1 className="text-2xl font-semibold text-foreground">Verify your email</h1>
+            <p className="text-sm text-muted-foreground">
+              We've sent a 6-digit verification code to{" "}
+              <span className="font-medium text-foreground">{formData.email}</span>
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="otp" className="text-sm font-medium text-foreground">
+                Verification Code
+              </label>
+              <input
+                id="otp"
+                type="text"
+                value={otpCode}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setOtpCode(value);
+                  if (errors.otp) setErrors((prev) => ({ ...prev, otp: "" }));
+                }}
+                className={cn(
+                  "w-full px-3 py-2.5 rounded-lg border bg-chat-input-bg text-sm outline-none transition-colors text-center text-2xl tracking-widest",
+                  errors.otp
+                    ? "border-destructive focus:border-destructive"
+                    : "border-chat-input-border focus:border-chat-input-focus"
+                )}
+                placeholder="000000"
+                disabled={isLoading}
+                maxLength={6}
+                autoFocus
+              />
+              {errors.otp && (
+                <p className="text-xs text-destructive">{errors.otp}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || otpCode.length !== 6}
+              className={cn(
+                "w-full py-2.5 rounded-lg font-medium text-sm transition-all",
+                "bg-primary text-primary-foreground hover:bg-primary/90",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Verifying...
+                </span>
+              ) : (
+                "Verify Email"
+              )}
+            </button>
+          </form>
+
+          <div className="space-y-3">
+            <button
+              onClick={handleResendOtp}
+              disabled={isLoading}
+              className="w-full py-2.5 rounded-lg font-medium text-sm border border-chat-input-border bg-chat-input-bg text-foreground hover:bg-chat-hover transition-colors disabled:opacity-50"
+            >
+              Resend Code
+            </button>
+            <button
+              onClick={() => setStep("form")}
+              className="w-full py-2.5 rounded-lg font-medium text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Back to signup
+            </button>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground">
+            Already have an account?{" "}
+            <Link to="/login" className="text-primary hover:text-primary/80 transition-colors">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Signup Form Step
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-sm space-y-8">
@@ -142,7 +290,7 @@ export default function SignupPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4">
           {/* Full Name - not required for super admin */}
           {!isSuperAdmin && (
             <div className="space-y-1.5">

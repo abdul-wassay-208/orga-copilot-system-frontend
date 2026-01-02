@@ -1,9 +1,10 @@
 import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User, Shield, Lock } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Conversation } from "@/types/chat";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
+import { adminClient } from "@/lib/api-client";
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -34,6 +35,24 @@ export function ChatSidebar({
   const [editTitle, setEditTitle] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>("User");
+
+  // Load user name on mount
+  useEffect(() => {
+    loadUserName();
+  }, []);
+
+  const loadUserName = async () => {
+    try {
+      const response = await adminClient.get("/api/auth/me");
+      const userData = response.data;
+      const name = userData.fullName || userData.email?.split("@")[0] || "User";
+      setUserName(name);
+    } catch (error: any) {
+      console.error("Failed to load user name:", error);
+      // Keep default "User" if API fails
+    }
+  };
 
   const handleStartEdit = (conv: Conversation) => {
     setEditingId(conv.id);
@@ -242,11 +261,11 @@ export function ChatSidebar({
         )}
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
               <User className="h-4 w-4 text-sidebar-foreground/70" />
             </div>
-            <span className="text-sm text-sidebar-foreground">User</span>
+            <span className="text-sm text-sidebar-foreground truncate">{userName}</span>
           </div>
           <div className="flex items-center gap-1">
             <ThemeToggle />

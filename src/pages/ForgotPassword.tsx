@@ -1,19 +1,34 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Mail, Eye, EyeOff } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Loader2, ArrowLeft, Mail, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
 
 type Step = "email" | "confirmation" | "reset";
 
 export default function ForgotPasswordPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [resetSuccess, setResetSuccess] = useState(false);
+
+  // Check for reset token in URL
+  useEffect(() => {
+    const token = searchParams.get("token");
+    if (token) {
+      setResetToken(token);
+      setStep("reset");
+    }
+  }, [searchParams]);
 
   const validateEmail = () => {
     const newErrors: Record<string, string> = {};
@@ -47,20 +62,78 @@ export default function ForgotPasswordPage() {
     if (!validateEmail()) return;
 
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    setStep("confirmation");
+    setErrors({});
+
+    try {
+      await apiClient.post("/api/auth/forgot-password", {
+        email: email,
+      });
+      
+      // Always show success message (security: don't reveal if email exists)
+      setStep("confirmation");
+      toast.success("If the email exists, a reset link has been sent");
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      // Still show confirmation for security
+      setStep("confirmation");
+      toast.success("If the email exists, a reset link has been sent");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateReset()) return;
 
+    if (!resetToken) {
+      setErrors({ newPassword: "Reset token is missing. Please use the link from your email." });
+      return;
+    }
+
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    // Handle reset logic
+    setErrors({});
+
+    try {
+      await apiClient.post("/api/auth/reset-password", {
+        token: resetToken,
+        newPassword: newPassword,
+      });
+      
+      setResetSuccess(true);
+      toast.success("Password reset successfully!");
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      const errorMessage = error?.response?.data?.message || "Failed to reset password. The link may have expired.";
+      setErrors({ newPassword: errorMessage });
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (resetSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm space-y-8 text-center">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+            <CheckCircle className="h-6 w-6 text-green-500" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold text-foreground">Password reset successful!</h1>
+            <p className="text-sm text-muted-foreground">
+              Your password has been reset. Redirecting to sign in...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (step === "confirmation") {
     return (
@@ -72,17 +145,14 @@ export default function ForgotPasswordPage() {
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold text-foreground">Check your email</h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              We've sent a password reset link to{" "}
-              <span className="font-medium text-foreground">{email}</span>
+              If the email <span className="font-medium text-foreground">{email}</span> exists in our system, 
+              we've sent a password reset link that will expire in 30 minutes.
+            </p>
+            <p className="text-xs text-muted-foreground mt-4">
+              The link can only be used once. If you don't see the email, check your spam folder.
             </p>
           </div>
           <div className="space-y-3">
-            <button
-              onClick={() => setStep("reset")}
-              className="w-full py-2.5 rounded-lg font-medium text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              I have a reset code
-            </button>
             <button
               onClick={() => setStep("email")}
               className="w-full py-2.5 rounded-lg font-medium text-sm border border-chat-input-border bg-chat-input-bg text-foreground hover:bg-chat-hover transition-colors"
