@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { TOKEN_KEY } from '../constants';
 
 export const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'https://orga-copilot-system-java-vrgx.onrender.com';
 

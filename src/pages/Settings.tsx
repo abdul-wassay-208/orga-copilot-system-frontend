@@ -34,7 +34,7 @@ export default function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [usageData, setUsageData] = useState({
     messagesUsed: 0,
-    messagesLimit: 15,
+    messagesLimit: 1000,
     percentUsed: 0,
   });
   const [isLoadingUsage, setIsLoadingUsage] = useState(false);
@@ -228,7 +228,7 @@ export default function SettingsPage() {
       const data = response.data;
       setUsageData({
         messagesUsed: data.messagesUsed || 0,
-        messagesLimit: data.messagesLimit || 15,
+        messagesLimit: data.messagesLimit || 1000,
         percentUsed: data.percentUsed || 0,
       });
     } catch (error: any) {

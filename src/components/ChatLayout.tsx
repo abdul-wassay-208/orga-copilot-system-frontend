@@ -68,7 +68,7 @@ export function ChatLayout() {
       const data = response.data;
       setUsageData({
         messagesUsed: data.messagesUsed || 0,
-        messagesLimit: data.messagesLimit || 15,
+        messagesLimit: data.messagesLimit || 1000,
         percentUsed: data.percentUsed || 0,
       });
       // Reset dismissed warning if usage drops below 80%
