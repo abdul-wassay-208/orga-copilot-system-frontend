@@ -283,12 +283,19 @@ export default function SettingsPage() {
       {/* Header */}
       <header className="border-b border-border">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            to="/"
+          <button
+            onClick={() => {
+              // Try to go back in history, otherwise go to chat
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate("/chat");
+              }
+            }}
             className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <h1 className="text-lg font-semibold text-foreground">Settings</h1>
         </div>
       </header>
