@@ -239,39 +239,44 @@ export function ChatSidebar({
       </div>
 
       {/* Footer - Sticky */}
-      <div className="p-3 border-t border-sidebar-border space-y-1 flex-shrink-0 bg-sidebar">
+      <div className="px-3 py-2.5 border-t border-sidebar-border flex-shrink-0 bg-sidebar">
         {/* Admin links - shown based on role */}
-        {isTenantAdmin && (
-          <Link
-            to="/admin"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
-          >
-            <Shield className="h-4 w-4" />
-            Tenant Admin
-          </Link>
-        )}
-        {isSuperAdmin && (
-          <Link
-            to="/super-admin"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
-          >
-            <Shield className="h-4 w-4" />
-            Super Admin
-          </Link>
+        {(isTenantAdmin || isSuperAdmin) && (
+          <div className="mb-2 space-y-1">
+            {isTenantAdmin && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
+              >
+                <Shield className="h-4 w-4" />
+                Tenant Admin
+              </Link>
+            )}
+            {isSuperAdmin && (
+              <Link
+                to="/super-admin"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Shield className="h-4 w-4" />
+                Super Admin
+              </Link>
+            )}
+          </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
+        {/* User info and settings */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
               <User className="h-4 w-4 text-sidebar-foreground/70" />
             </div>
             <span className="text-sm text-sidebar-foreground truncate">{userName}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             <ThemeToggle />
             <Link
               to="/settings"
-              className="p-2 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              className="p-1.5 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground"
               aria-label="Settings"
             >
               <Settings className="h-4 w-4" />
