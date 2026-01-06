@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Users,
@@ -33,6 +33,7 @@ interface User {
 
 
 export default function AdminPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("users");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
@@ -50,13 +51,19 @@ export default function AdminPage() {
       // Redirect if not tenant admin or super admin
       if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
         toast.error("Access denied. Tenant admin access required.");
-        window.location.href = "/chat";
+        navigate("/chat", { replace: true });
         return;
       }
     } catch (error: any) {
       console.error("Failed to verify access:", error);
-      toast.error("Access denied. Please log in with an admin account.");
-      window.location.href = "/chat";
+      // Check if it's an auth error
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        toast.error("Please log in to continue.");
+        navigate("/login", { replace: true });
+      } else {
+        toast.error("Access denied. Please log in with an admin account.");
+        navigate("/chat", { replace: true });
+      }
     } finally {
       setCheckingRole(false);
     }

@@ -101,12 +101,19 @@ export default function ManageSubscriptionPage() {
       {/* Header */}
       <header className="border-b border-border">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link
-            to="/admin"
+          <button
+            onClick={() => {
+              // Try to go back in history, otherwise go to chat
+              if (window.history.length > 1) {
+                navigate(-1);
+              } else {
+                navigate("/chat");
+              }
+            }}
             className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
           >
             <ArrowLeft className="h-5 w-5" />
-          </Link>
+          </button>
           <h1 className="text-lg font-semibold text-foreground">
             {isOrg ? "Organization Subscription" : "Subscription"}
           </h1>

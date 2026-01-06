@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Building2,
@@ -46,6 +46,7 @@ interface GlobalKnowledgeFile {
 }
 
 export default function SuperAdminPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("tenants");
   const [userRole, setUserRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
@@ -63,13 +64,19 @@ export default function SuperAdminPage() {
       // Redirect if not super admin
       if (role !== "SUPER_ADMIN") {
         toast.error("Access denied. Super admin access required.");
-        window.location.href = "/chat";
+        navigate("/chat", { replace: true });
         return;
       }
     } catch (error: any) {
       console.error("Failed to verify access:", error);
-      toast.error("Access denied. Please log in with a super admin account.");
-      window.location.href = "/chat";
+      // Check if it's an auth error
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        toast.error("Please log in to continue.");
+        navigate("/login", { replace: true });
+      } else {
+        toast.error("Access denied. Please log in with a super admin account.");
+        navigate("/chat", { replace: true });
+      }
     } finally {
       setCheckingRole(false);
     }
