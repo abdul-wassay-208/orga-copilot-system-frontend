@@ -98,7 +98,7 @@ export function ChatSidebar({
   }
 
   return (
-        <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left">
+    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left">
 
       {/* Header with product name - Sticky */}
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
