@@ -1,14 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { adminClient } from "@/lib/api-client";
+import { toast } from "sonner";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
 export default function UpdatePaymentMethodPage() {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [checkingRole, setCheckingRole] = useState(true);
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    checkAccess();
+  }, []);
+
+  const checkAccess = async () => {
+    try {
+      const response = await adminClient.get("/api/auth/me");
+      const role = response.data?.role;
+      setUserRole(role);
+      
+      // Only allow TENANT_ADMIN or SUPER_ADMIN to access payment method page
+      // Employees should be redirected
+      if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
+        toast.error("Access denied. Billing is only available to administrators.");
+        navigate("/chat", { replace: true });
+        return;
+      }
+    } catch (error: any) {
+      console.error("Failed to verify access:", error);
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        toast.error("Please log in to continue.");
+        navigate("/login", { replace: true });
+      } else {
+        toast.error("Access denied. Billing is only available to administrators.");
+        navigate("/chat", { replace: true });
+      }
+    } finally {
+      setCheckingRole(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     cardholderName: "",
@@ -120,6 +155,18 @@ export default function UpdatePaymentMethodPage() {
         </div>
       </div>
     );
+  }
+
+  if (checkingRole) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (userRole !== "TENANT_ADMIN" && userRole !== "SUPER_ADMIN") {
+    return null; // Will redirect via checkAccess
   }
 
   return (

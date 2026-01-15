@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info } from "lucide-react";
+import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
+import { adminClient } from "@/lib/api-client";
+import { toast } from "sonner";
 
 type SubscriptionType = "individual" | "organization";
 
@@ -39,9 +41,42 @@ type Subscription = IndividualSubscription | OrganizationSubscription;
 
 export default function ManageSubscriptionPage() {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [checkingRole, setCheckingRole] = useState(true);
+  
+  useEffect(() => {
+    checkAccess();
+  }, []);
+
+  const checkAccess = async () => {
+    try {
+      const response = await adminClient.get("/api/auth/me");
+      const role = response.data?.role;
+      setUserRole(role);
+      
+      // Only allow TENANT_ADMIN or SUPER_ADMIN to access billing
+      // Employees should be redirected
+      if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
+        toast.error("Access denied. Billing is only available to administrators.");
+        navigate("/chat", { replace: true });
+        return;
+      }
+    } catch (error: any) {
+      console.error("Failed to verify access:", error);
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        toast.error("Please log in to continue.");
+        navigate("/login", { replace: true });
+      } else {
+        toast.error("Access denied. Billing is only available to administrators.");
+        navigate("/chat", { replace: true });
+      }
+    } finally {
+      setCheckingRole(false);
+    }
+  };
   
   // Mock: In real app, this would come from auth context
-  const isOrganizationAdmin = true;
+  const isOrganizationAdmin = userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN";
   
   const [subscription] = useState<Subscription>(
     isOrganizationAdmin

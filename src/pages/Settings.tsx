@@ -38,6 +38,7 @@ export default function SettingsPage() {
     percentUsed: 0,
   });
   const [isLoadingUsage, setIsLoadingUsage] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   // Load user data on mount
   useEffect(() => {
@@ -587,17 +588,7 @@ export default function SettingsPage() {
               <ThemeToggle />
             </div>
 
-            {/* Language */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Language</p>
-                <p className="text-sm text-muted-foreground">English (US)</p>
-              </div>
-              <select className="px-3 py-1.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus">
-                <option>English (US)</option>
-                <option>English (UK)</option>
-              </select>
-            </div>
+            
           </div>
         </section>
 
@@ -749,29 +740,31 @@ export default function SettingsPage() {
         </section>
 
         {/* Billing Section (Admin Only) */}
-        <section className="space-y-4">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            Billing
-          </h2>
-          <Link
-            to="/billing"
-            className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-chat-hover transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-muted">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
+        {(userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && (
+          <section className="space-y-4">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Billing
+            </h2>
+            <Link
+              to="/billing"
+              className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-chat-hover transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-muted">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Manage Billing</p>
+                  <p className="text-xs text-muted-foreground">Subscription, payment method, and invoices</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Manage Billing</p>
-                <p className="text-xs text-muted-foreground">Subscription, payment method, and invoices</p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            Only visible to organization administrators.
-          </p>
-        </section>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              Only visible to organization administrators.
+            </p>
+          </section>
+        )}
       </main>
 
       {/* Clear Conversations Dialog */}

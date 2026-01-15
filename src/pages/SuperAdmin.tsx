@@ -123,10 +123,6 @@ export default function SuperAdminPage() {
               <p className="text-xs text-muted-foreground">Manage all organizations</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10">
-            <Shield className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs font-medium text-primary">Private by Design</span>
-          </div>
         </div>
       </header>
 

@@ -14,21 +14,24 @@ import {
   Loader2,
   ChevronRight,
   Info,
+  FileText,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PrivacyDisclaimer, PrivacyBadge } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
-type Tab = "users" | "billing";
+type Tab = "users" | "billing" | "knowledge";
 
 interface User {
-  id: string;
+  id: string | null;
   name: string;
   email: string;
   role: "admin" | "employee";
-  status: "active" | "invited";
+  status: "active" | "pending";
   messagesUsed?: number;
+  invitationTokenId?: number;
 }
 
 
@@ -69,9 +72,13 @@ export default function AdminPage() {
     }
   };
 
+  // Only show billing tab for admins (TENANT_ADMIN or SUPER_ADMIN), not employees
   const tabs = [
     { id: "users" as Tab, label: "Users", icon: Users },
-    { id: "billing" as Tab, label: "Billing", icon: CreditCard },
+    ...(userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN"
+      ? [{ id: "billing" as Tab, label: "Billing", icon: CreditCard }]
+      : []),
+    { id: "knowledge" as Tab, label: "Knowledge Base", icon: FileText },
   ];
 
   if (checkingRole) {
@@ -94,21 +101,23 @@ export default function AdminPage() {
           <div className="flex items-center gap-4">
             <Link
               to="/"
-              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors flex-shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-foreground">Tenant Admin</h1>
-                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium whitespace-nowrap">
                   Organization
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">Manage your organization</p>
             </div>
           </div>
-          <PrivacyBadge />
+          <div className="flex-shrink-0">
+            <PrivacyBadge />
+          </div>
         </div>
       </header>
 
@@ -143,7 +152,8 @@ export default function AdminPage() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {activeTab === "users" && <UsersTab />}
-        {activeTab === "billing" && <BillingTab />}
+        {activeTab === "billing" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <BillingTab />}
+        {activeTab === "knowledge" && <KnowledgeBaseTab />}
       </main>
     </div>
   );
@@ -169,12 +179,13 @@ function UsersTab() {
       const backendUsers = response.data || [];
       
       const transformed: User[] = backendUsers.map((u: any) => ({
-        id: String(u.id),
+        id: u.id ? String(u.id) : null,
         name: u.fullName || u.email.split("@")[0],
         email: u.email,
         role: u.role === "TENANT_ADMIN" ? "admin" : "employee",
-        status: "active" as const, // All users from backend are active
+        status: u.status === "PENDING" ? "pending" : "active",
         messagesUsed: u.messagesUsed || 0,
+        invitationTokenId: u.invitationTokenId,
       }));
       
       setUsers(transformed);
@@ -212,7 +223,24 @@ function UsersTab() {
     }
   };
 
+  const handleResendInvitation = async (email: string) => {
+    try {
+      await adminClient.post("/api/admin/tenant/users/resend-invitation", {
+        email: email,
+      });
+      toast.success("Invitation resent successfully");
+      await loadUsers();
+    } catch (error: any) {
+      console.error("Failed to resend invitation:", error);
+      toast.error(error?.response?.data?.message || "Failed to resend invitation");
+    }
+  };
+
   const handleRemove = async (id: string) => {
+    if (!id) {
+      toast.error("Cannot remove pending invitation. Please wait for it to expire.");
+      return;
+    }
     try {
       await adminClient.delete(`/api/admin/tenant/users/${id}`);
       toast.success("User removed successfully");
@@ -258,9 +286,9 @@ function UsersTab() {
     <div className="space-y-4">
       {/* Active Users Count & Billing Note */}
       <div className="p-4 rounded-xl bg-card border border-border">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
@@ -270,7 +298,7 @@ function UsersTab() {
           </div>
           <button
             onClick={() => setShowInviteDialog(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Invite user
@@ -283,24 +311,24 @@ function UsersTab() {
       </div>
 
       {/* Users list */}
-      <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+      <div className="border border-border rounded-xl divide-y divide-border overflow-visible">
         {users.map((user) => (
-          <div key={user.id} className="flex items-center justify-between p-4 bg-card hover:bg-chat-hover/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+          <div key={user.id || user.email} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-medium text-muted-foreground">
                   {user.name.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
               {/* Usage bar - numbers only, no content */}
               {user.messagesUsed !== undefined && (
-                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
                   <span>{user.messagesUsed}</span>
                   <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div 
@@ -312,17 +340,17 @@ function UsersTab() {
               )}
               <span
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-full font-medium",
+                  "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
                   user.status === "active"
                     ? "bg-green-500/10 text-green-600 dark:text-green-400"
                     : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
                 )}
               >
-                {user.status === "active" ? "Active" : "Invited"}
+                {user.status === "active" ? "Active" : "Pending"}
               </span>
               <span 
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-full font-medium",
+                  "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
                   user.role === "admin" 
                     ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground"
@@ -330,24 +358,29 @@ function UsersTab() {
               >
                 {user.role === "admin" ? "Admin" : "Employee"}
               </span>
-              <div className="relative group">
+              <div className="relative group flex-shrink-0">
                 <button className="p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors">
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
-                <div className="absolute right-0 mt-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                  {user.status === "invited" && (
-                    <button className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground">
+                <div className="absolute right-0 bottom-full mb-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  {user.status === "pending" && (
+                    <button 
+                      onClick={() => handleResendInvitation(user.email)}
+                      className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground"
+                    >
                       <RefreshCw className="h-3.5 w-3.5" />
                       Resend invite
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowRemoveConfirm(user.id)}
-                    className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Remove user
-                  </button>
+                  {user.id && (
+                    <button
+                      onClick={() => setShowRemoveConfirm(user.id!)}
+                      className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove user
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -662,6 +695,170 @@ function BillingTab() {
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
       </Link>
+    </div>
+  );
+}
+
+function KnowledgeBaseTab() {
+  const [files, setFiles] = useState<Array<{ id: number; fileName: string; uploadedAt: string; updatedAt: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    loadFiles();
+  }, []);
+
+  const loadFiles = async () => {
+    try {
+      setLoading(true);
+      const response = await adminClient.get("/api/admin/tenant/knowledge-base");
+      setFiles(response.data || []);
+    } catch (error: any) {
+      console.error("Failed to load KB files:", error);
+      toast.error("Failed to load knowledge base files");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileSelect = () => {
+    fileInput?.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Allow text files and Word documents
+    const allowedExtensions = ['.txt', '.md', '.doc', '.docx'];
+    const allowedMimeTypes = ['text/', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    const hasValidExtension = allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    const hasValidMimeType = allowedMimeTypes.some(mime => file.type.startsWith(mime));
+    
+    if (!hasValidExtension && !hasValidMimeType) {
+      toast.error("Please upload a text file (.txt, .md) or Word document (.doc, .docx)");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      await adminClient.post("/api/admin/tenant/knowledge-base", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast.success("Knowledge base file uploaded successfully");
+      await loadFiles();
+      // Reset file input
+      if (fileInput) {
+        fileInput.value = "";
+      }
+    } catch (error: any) {
+      console.error("Failed to upload file:", error);
+      toast.error(error?.response?.data?.message || "Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDelete = async (fileId: number) => {
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
+    try {
+      await adminClient.delete(`/api/admin/tenant/knowledge-base/${fileId}`);
+      toast.success("File deleted successfully");
+      await loadFiles();
+    } catch (error: any) {
+      console.error("Failed to delete file:", error);
+      toast.error(error?.response?.data?.message || "Failed to delete file");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+        <p className="text-sm text-muted-foreground mt-2">Loading knowledge base files...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Privacy note */}
+      <div className="flex items-start gap-2.5 p-4 rounded-xl bg-primary/5 border border-primary/10">
+        <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+        <p className="text-sm text-foreground/80">
+          Upload text files to build your knowledge base. The AI will only use content from these files to answer questions. 
+          Employees you invite will have access to your knowledge base.
+        </p>
+      </div>
+
+      {/* Upload section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">Knowledge Base Files</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Upload text files (.txt, .md) or Word documents (.doc, .docx) to enhance AI responses
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={(el) => setFileInput(el)}
+            onChange={handleFileUpload}
+            accept=".txt,.md,.doc,.docx,text/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+          />
+          <button
+            onClick={handleFileSelect}
+            disabled={isUploading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Upload File
+          </button>
+        </div>
+      </div>
+
+      {/* Files list */}
+      {files.length === 0 ? (
+        <div className="p-8 rounded-xl border border-dashed border-border text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">No knowledge base files uploaded</p>
+          <p className="text-xs text-muted-foreground mt-1">Upload a text file to get started</p>
+        </div>
+      ) : (
+        <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+          {files.map((file) => (
+            <div key={file.id} className="flex items-center justify-between p-4 bg-card hover:bg-chat-hover/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{file.fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Updated {new Date(file.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDelete(file.id)}
+                className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

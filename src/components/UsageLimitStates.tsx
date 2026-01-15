@@ -151,7 +151,6 @@ export function PrivacyBadge({ className }: { className?: string }) {
       )}
     >
       <Shield className="h-3 w-3 text-primary" />
-      <span className="text-xs font-medium text-primary">Private by Design</span>
     </div>
   );
 }

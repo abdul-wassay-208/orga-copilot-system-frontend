@@ -39,7 +39,7 @@ export default function LoginPage() {
     setErrors({});
     
     try {
-      console.log("Attempting login to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com'}/api/auth/login`);
+      console.log("Attempting login to:", `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/login`);
       const response = await apiClient.post("/api/auth/login", {
         email,
         password,
@@ -158,14 +158,14 @@ export default function LoginPage() {
           </div>
 
           {/* Forgot Password */}
-          {/* <div className="flex justify-end">
+          <div className="flex justify-end">
             <Link
               to="/forgot-password"
               className="text-sm text-primary hover:text-primary/80 transition-colors"
             >
               Forgot password?
             </Link>
-          </div> */}
+          </div>
 
           {/* Submit */}
           <button
@@ -237,12 +237,12 @@ export default function LoginPage() {
         </a> */}
 
         {/* Sign up link */}
-        {/* <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link to="/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
             Sign up
           </Link>
-        </p> */}
+        </p>
       </div>
     </div>
   );
