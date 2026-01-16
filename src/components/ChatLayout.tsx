@@ -50,16 +50,8 @@ export function ChatLayout() {
     scrollToBottom();
   }, [activeConversation?.messages, scrollToBottom]);
 
-  // Check authentication and load data on mount
+  // Load data on mount (auth is handled by ProtectedRoute)
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
-    if (!token) {
-      // Redirect to login if no token
-      window.location.href = "/login";
-      return;
-    }
-
     loadConversations();
     loadUserRole();
     loadUsageData();
