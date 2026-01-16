@@ -22,14 +22,26 @@ export default function AcceptInvitationPage() {
 
   // Check for token in URL and verify it
   useEffect(() => {
-    // Check if we're on /index.html with a token - redirect to /accept-invitation
-    if (window.location.pathname === '/index.html' || window.location.pathname === '/') {
+    // Only process if we're actually on the accept-invitation route
+    // If we're on /index.html with a token, redirect to /accept-invitation
+    if (window.location.pathname === '/index.html') {
       const urlToken = searchParams.get("token");
       if (urlToken) {
         // Redirect to the correct route
         navigate(`/accept-invitation?token=${urlToken}`, { replace: true });
         return;
+      } else {
+        // No token on /index.html - redirect to home/chat
+        navigate("/chat", { replace: true });
+        return;
       }
+    }
+    
+    // Only show invitation form if we're on the accept-invitation route
+    if (window.location.pathname !== '/accept-invitation') {
+      // If somehow we're on a different route, redirect to chat
+      navigate("/chat", { replace: true });
+      return;
     }
     
     const urlToken = searchParams.get("token");

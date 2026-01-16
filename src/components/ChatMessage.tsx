@@ -63,14 +63,6 @@ export function ChatMessage({
     toast.success("Message exported");
   };
 
-  const formatTimestamp = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
-  };
-
   const isUser = message.role === "user";
   
   // Check if message has a numeric ID (saved to backend) or string ID (local only)
@@ -322,9 +314,6 @@ export function ChatMessage({
                     <Download className="h-3.5 w-3.5" />
                     <span>Export</span>
                   </button>
-                  <span className="ml-2 text-chat-timestamp">
-                    {formatTimestamp(message.timestamp)}
-                  </span>
                 </>
               )}
             </div>
