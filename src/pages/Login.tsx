@@ -39,7 +39,7 @@ export default function LoginPage() {
     setErrors({});
     
     try {
-      console.log("Attempting login to:", `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/auth/login`);
+      console.log("Attempting login to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java-vrgx.onrender.com'}/api/auth/login`);
       const response = await apiClient.post("/api/auth/login", {
         email,
         password,
