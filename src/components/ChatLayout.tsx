@@ -830,7 +830,7 @@ export function ChatLayout() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileMenuOpen(true)}
@@ -851,7 +851,7 @@ export function ChatLayout() {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed md:relative z-50 transition-transform duration-200",
+          "fixed md:relative z-50 transition-transform duration-200 h-screen md:h-full",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >

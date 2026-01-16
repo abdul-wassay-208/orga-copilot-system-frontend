@@ -98,7 +98,7 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left">
+    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left overflow-hidden">
 
       {/* Header with product name - Sticky */}
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
@@ -127,7 +127,7 @@ export function ChatSidebar({
       </div>
 
       {/* Conversation List - Scrollable */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin py-2 min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin py-2 min-h-0">
         {conversations.length === 0 ? (
           <div className="px-3 py-8 text-center">
             <MessageSquare className="h-8 w-8 text-sidebar-foreground/20 mx-auto mb-2" />
