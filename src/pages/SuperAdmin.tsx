@@ -107,12 +107,12 @@ export default function SuperAdminPage() {
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link
-              to="/"
+            <button
+              onClick={() => navigate("/chat")}
               className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
-            </Link>
+            </button>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-semibold text-foreground">Super Admin</h1>

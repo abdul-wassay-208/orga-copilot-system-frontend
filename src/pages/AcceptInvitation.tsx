@@ -22,6 +22,16 @@ export default function AcceptInvitationPage() {
 
   // Check for token in URL and verify it
   useEffect(() => {
+    // Check if we're on /index.html with a token - redirect to /accept-invitation
+    if (window.location.pathname === '/index.html' || window.location.pathname === '/') {
+      const urlToken = searchParams.get("token");
+      if (urlToken) {
+        // Redirect to the correct route
+        navigate(`/accept-invitation?token=${urlToken}`, { replace: true });
+        return;
+      }
+    }
+    
     const urlToken = searchParams.get("token");
     if (urlToken) {
       setToken(urlToken);
@@ -30,7 +40,7 @@ export default function AcceptInvitationPage() {
       setTokenError("No invitation token found. Please use the link from your invitation email.");
       setIsVerifying(false);
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const verifyToken = async (invitationToken: string) => {
     setIsVerifying(true);
