@@ -22,7 +22,7 @@ import { PrivacyDisclaimer, PrivacyBadge } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
-type Tab = "users" | "billing" | "knowledge";
+type Tab = "users" | "billing";
 
 interface User {
   id: string | null;
@@ -78,7 +78,6 @@ export default function AdminPage() {
     ...(userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN"
       ? [{ id: "billing" as Tab, label: "Billing", icon: CreditCard }]
       : []),
-    { id: "knowledge" as Tab, label: "Knowledge Base", icon: FileText },
   ];
 
   if (checkingRole) {
@@ -107,7 +106,7 @@ export default function AdminPage() {
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-semibold text-foreground">Tenant Admin</h1>
+                <h1 className="text-lg font-semibold text-foreground">Admin</h1>
                 <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium whitespace-nowrap">
                   Organization
                 </span>
@@ -153,7 +152,6 @@ export default function AdminPage() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         {activeTab === "users" && <UsersTab />}
         {activeTab === "billing" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <BillingTab />}
-        {activeTab === "knowledge" && <KnowledgeBaseTab />}
       </main>
     </div>
   );
