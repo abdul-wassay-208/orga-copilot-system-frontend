@@ -16,6 +16,7 @@ export default function SignupPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    organizationName: "",
     acceptTerms: false,
   });
   const [otpCode, setOtpCode] = useState("");
@@ -40,6 +41,10 @@ export default function SignupPage() {
 
     if (!isSuperAdmin && !formData.fullName.trim()) {
       newErrors.fullName = "Full name is required";
+    }
+
+    if (!isSuperAdmin && !formData.organizationName.trim()) {
+      newErrors.organizationName = "Organization name is required";
     }
 
     if (!formData.email) {
@@ -100,6 +105,7 @@ export default function SignupPage() {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
+          organizationName: formData.organizationName,
         });
 
         if (response.data.requiresVerification) {
@@ -120,13 +126,43 @@ export default function SignupPage() {
       }
     } catch (error: any) {
       console.error("Signup error:", error);
-      const errorMessage = error?.response?.data?.message || "Failed to create account";
       
-      if (errorMessage.includes("Email already in use")) {
-        setErrors({ email: errorMessage });
+      // Handle validation errors from backend
+      const responseData = error?.response?.data;
+      const newErrors: Record<string, string> = {};
+      
+      if (responseData?.errors) {
+        // Backend returned field-specific validation errors
+        Object.keys(responseData.errors).forEach((field) => {
+          newErrors[field] = responseData.errors[field];
+        });
+        setErrors(newErrors);
+        
+        // Show first error in toast
+        const firstError = Object.values(responseData.errors)[0] as string;
+        toast.error(firstError);
+      } else if (responseData?.message) {
+        // Single error message
+        const errorMessage = responseData.message;
+        
+        // Try to map to specific fields
+        if (errorMessage.toLowerCase().includes("email")) {
+          newErrors.email = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("password")) {
+          newErrors.password = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("full name") || errorMessage.toLowerCase().includes("fullname")) {
+          newErrors.fullName = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("organization")) {
+          newErrors.organizationName = errorMessage;
+        } else {
+          // Generic error - show in toast but don't block form
+          toast.error(errorMessage);
+        }
+        
+        setErrors(newErrors);
       } else {
-        setErrors({ email: errorMessage });
-        toast.error(errorMessage);
+        // Generic error
+        toast.error("Failed to create account. Please check your information and try again.");
       }
     } finally {
       setIsLoading(false);
@@ -317,6 +353,32 @@ export default function SignupPage() {
           </div>
           )}
 
+          {/* Organization Name - not required for super admin */}
+          {!isSuperAdmin && (
+            <div className="space-y-1.5">
+              <label htmlFor="organizationName" className="text-sm font-medium text-foreground">
+                Organization Name
+              </label>
+              <input
+                id="organizationName"
+                type="text"
+                value={formData.organizationName}
+                onChange={(e) => updateField("organizationName", e.target.value)}
+                className={cn(
+                  "w-full px-3 py-2.5 rounded-lg border bg-chat-input-bg text-sm outline-none transition-colors",
+                  errors.organizationName
+                    ? "border-destructive focus:border-destructive"
+                    : "border-chat-input-border focus:border-chat-input-focus"
+                )}
+                placeholder="Acme Corporation"
+                disabled={isLoading}
+              />
+              {errors.organizationName && (
+                <p className="text-xs text-destructive">{errors.organizationName}</p>
+              )}
+            </div>
+          )}
+
           {/* Work Email */}
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium text-foreground">
@@ -455,7 +517,7 @@ export default function SignupPage() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isLoading || !isFormValid}
+            disabled={isLoading}
             className={cn(
               "w-full py-2.5 rounded-lg font-medium text-sm transition-all",
               "bg-primary text-primary-foreground hover:bg-primary/90",

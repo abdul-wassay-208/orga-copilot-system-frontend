@@ -165,15 +165,22 @@ function UsersTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "employee">("employee");
   const [isInviting, setIsInviting] = useState(false);
+  
+  // Get tenant ID from URL query parameter (for super admin viewing specific tenant)
+  const searchParams = new URLSearchParams(window.location.search);
+  const tenantId = searchParams.get("tenant");
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [tenantId]);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await adminClient.get("/api/admin/tenant/users");
+      const url = tenantId 
+        ? `/api/admin/tenant/users?tenantId=${tenantId}`
+        : "/api/admin/tenant/users";
+      const response = await adminClient.get(url);
       const backendUsers = response.data || [];
       
       const transformed: User[] = backendUsers.map((u: any) => ({

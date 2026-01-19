@@ -1,7 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { adminClient } from '@/lib/api-client';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
@@ -10,41 +9,9 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, user, loading } = useAuth();
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      
-      if (!token) {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const response = await adminClient.get('/api/auth/me');
-        const role = response.data?.role;
-        setUserRole(role);
-        setIsAuthenticated(true);
-      } catch (error: any) {
-        // Token is invalid
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('authToken');
-        }
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
-  }, []);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -57,7 +24,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
+  if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
     // User doesn't have required role, redirect to chat
     return <Navigate to="/chat" replace />;
   }

@@ -35,6 +35,13 @@ interface Tenant {
   messagesUsed: number;
   messagesLimit: number;
   plan: string;
+  admin?: {
+    id: string;
+    email: string;
+    fullName: string;
+  } | null;
+  totalEmployees: number;
+  createdAt?: string;
 }
 
 interface GlobalKnowledgeFile {
@@ -85,7 +92,6 @@ export default function SuperAdminPage() {
   const tabs = [
     { id: "tenants" as Tab, label: "Tenants", icon: Building2 },
     { id: "usage" as Tab, label: "Usage Overview", icon: BarChart3 },
-    { id: "knowledge" as Tab, label: "Knowledge Base", icon: FileText },
     { id: "limits" as Tab, label: "Default Limits", icon: Settings },
   ];
 
@@ -170,7 +176,6 @@ function TenantsTab() {
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
-  const [newTenantDomain, setNewTenantDomain] = useState("");
   const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
@@ -201,6 +206,13 @@ function TenantsTab() {
           messagesUsed: 0, // Will be calculated separately
           messagesLimit: t.maxMessagesPerMonth || 0,
           plan: t.subscriptionPlan || "BASIC",
+          admin: t.admin ? {
+            id: String(t.admin.id),
+            email: t.admin.email,
+            fullName: t.admin.fullName,
+          } : null,
+          totalEmployees: t.totalEmployees || 0,
+          createdAt: t.createdAt,
         };
       });
       
@@ -214,19 +226,17 @@ function TenantsTab() {
   };
 
   const handleAddTenant = async () => {
-    if (!newTenantName.trim() || !newTenantDomain.trim()) return;
+    if (!newTenantName.trim()) return;
     setIsAdding(true);
     
     try {
       const response = await adminClient.post("/api/admin/super/tenants", {
         name: newTenantName.trim(),
-        domain: newTenantDomain.trim(),
       });
       
       toast.success("Tenant created successfully");
       setShowAddDialog(false);
       setNewTenantName("");
-      setNewTenantDomain("");
       await loadTenants();
     } catch (error: any) {
       console.error("Failed to create tenant:", error);
@@ -364,7 +374,19 @@ function TenantsTab() {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{tenant.name}</p>
-                <p className="text-xs text-muted-foreground">{tenant.plan} · {tenant.usersCount} users</p>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>{tenant.plan} · {tenant.totalEmployees} employees</p>
+                  {tenant.admin && (
+                    <p className="text-xs text-muted-foreground">
+                      Admin: {tenant.admin.fullName} ({tenant.admin.email})
+                    </p>
+                  )}
+                  {tenant.createdAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Created: {new Date(tenant.createdAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -422,18 +444,8 @@ function TenantsTab() {
                   placeholder="Acme Inc"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
                 />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Domain identifier</label>
-                <input
-                  type="text"
-                  value={newTenantDomain}
-                  onChange={(e) => setNewTenantDomain(e.target.value)}
-                  placeholder="acme"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
-                />
                 <p className="text-xs text-muted-foreground">
-                  Users with emails like user@{newTenantDomain || "domain"}.com will be assigned to this organization
+                  Organization names can be duplicated. Each organization is identified by its unique ID.
                 </p>
               </div>
             </div>
@@ -446,7 +458,7 @@ function TenantsTab() {
               </button>
               <button
                 onClick={handleAddTenant}
-                disabled={!newTenantName.trim() || !newTenantDomain.trim() || isAdding}
+                disabled={!newTenantName.trim() || isAdding}
                 className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}

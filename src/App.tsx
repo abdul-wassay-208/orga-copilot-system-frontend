@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
 import { useEffect } from "react";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ChatProvider } from "@/contexts/ChatContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -14,6 +16,7 @@ import Admin from "./pages/Admin";
 import SuperAdmin from "./pages/SuperAdmin";
 import ManageSubscription from "./pages/ManageSubscription";
 import UpdatePaymentMethod from "./pages/UpdatePaymentMethod";
+import SharedConversation from "./pages/SharedConversation";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -64,7 +67,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
+        <AuthProvider>
+          <ChatProvider>
+            <Routes>
           {/* Handle /index.html from Render redirects */}
           <Route path="/index.html" element={<IndexHtmlHandler />} />
           
@@ -74,6 +79,7 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
+          <Route path="/share/:token" element={<SharedConversation />} />
           
           {/* Protected routes - require authentication */}
           <Route 
@@ -127,7 +133,9 @@ const App = () => (
           
           {/* 404 - must be last */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
+            </Routes>
+          </ChatProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -3,13 +3,14 @@ import { ChatSidebar } from "./ChatSidebar";
 import { ChatMessage, TypingIndicator } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { EmptyState } from "./EmptyState";
+import { ShareConversationModal } from "./ShareConversationModal";
 import { Conversation, Message } from "@/types/chat";
-import { Menu, Lock, Download, AlertTriangle, X } from "lucide-react";
+import { Menu, Lock, Download, AlertTriangle, X, Share2, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { chatClient, adminClient } from "@/lib/api-client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 // Generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -36,7 +37,9 @@ export function ChatLayout() {
   const [dismissedWarning, setDismissedWarning] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [showShareModal, setShowShareModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
@@ -256,6 +259,19 @@ export function ChatLayout() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Conversation exported");
+  };
+
+  const handleLogout = () => {
+    // Clear tokens
+    localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("userRole");
+    
+    // Show success message
+    toast.success("Logged out successfully");
+    
+    // Redirect to login
+    navigate("/login", { replace: true });
   };
 
   const handleStartEdit = (messageId: string) => {
@@ -877,6 +893,13 @@ export function ChatLayout() {
                 <span className="text-xs text-primary font-medium">Private</span>
               </div>
               <button
+                onClick={() => setShowShareModal(true)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                aria-label="Share conversation"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+              <button
                 onClick={handleExportConversation}
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
                 aria-label="Export conversation"
@@ -884,6 +907,14 @@ export function ChatLayout() {
                 <Download className="h-4 w-4" />
               </button>
               <ThemeToggle />
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                aria-label="Logout"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}
@@ -891,8 +922,16 @@ export function ChatLayout() {
         {!activeConversation ? (
           <>
             {/* Top bar for empty state */}
-            <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm">
+            <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm gap-2">
               <ThemeToggle />
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                aria-label="Logout"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
             <EmptyState 
               onSelectPrompt={handleSendMessage} 
@@ -1005,6 +1044,15 @@ export function ChatLayout() {
           </>
         )}
       </div>
+      
+      {/* Share Conversation Modal */}
+      {activeConversation && (
+        <ShareConversationModal
+          conversationId={activeConversation.id}
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
     </div>
   );
 }
