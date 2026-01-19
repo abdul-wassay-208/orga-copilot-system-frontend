@@ -740,16 +740,16 @@ export default function SettingsPage() {
             {/* Data Control */}
             <div className="pt-3 border-t border-border">
               <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                You have full control over your data. You can delete your conversation history at any time, 
-                and all associated messages will be permanently removed from our systems.
+                You have full control over your data. You can delete your conversation history and memories at any time, 
+                and all associated messages and memories will be permanently removed from our systems.
               </p>
               <button
                 onClick={() => setClearDialogOpen(true)}
                 className="text-sm text-destructive hover:text-destructive/80 transition-colors font-medium"
               >
-                Clear my conversations
+                Clear my conversations and memories.
               </button>
-            </div>
+            </div>  
           </div>
         </section>
 

@@ -4,6 +4,7 @@ import { ChatMessage, TypingIndicator } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { EmptyState } from "./EmptyState";
 import { ShareConversationModal } from "./ShareConversationModal";
+import { DeleteChatModal } from "./DeleteChatModal";
 import { Conversation, Message } from "@/types/chat";
 import { Menu, Lock, Download, AlertTriangle, X, Share2, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
@@ -38,6 +39,7 @@ export function ChatLayout() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [showShareModal, setShowShareModal] = useState(false);
+  const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -219,21 +221,25 @@ export function ChatLayout() {
     }
   };
 
-  const handleDeleteConversation = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this conversation?")) {
-      return;
-    }
+  const handleDeleteConversation = (id: string) => {
+    setDeleteConversationId(id);
+  };
+
+  const confirmDeleteConversation = async () => {
+    if (!deleteConversationId) return;
 
     try {
-      await chatClient.delete(`/chat/conversations/${id}`);
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeConversationId === id) {
+      await chatClient.delete(`/chat/conversations/${deleteConversationId}`);
+      setConversations((prev) => prev.filter((c) => c.id !== deleteConversationId));
+      if (activeConversationId === deleteConversationId) {
         setActiveConversationId(null);
       }
       toast.success("Conversation deleted");
+      setDeleteConversationId(null);
     } catch (error: any) {
       console.error("Failed to delete conversation:", error);
       toast.error("Failed to delete conversation");
+      setDeleteConversationId(null);
     }
   };
 
@@ -1053,6 +1059,19 @@ export function ChatLayout() {
           onClose={() => setShowShareModal(false)}
         />
       )}
+
+      {/* Delete Chat Modal */}
+      {deleteConversationId && (() => {
+        const conversationToDelete = conversations.find(c => c.id === deleteConversationId);
+        return conversationToDelete ? (
+          <DeleteChatModal
+            isOpen={true}
+            chatTitle={conversationToDelete.title}
+            onClose={() => setDeleteConversationId(null)}
+            onConfirm={confirmDeleteConversation}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

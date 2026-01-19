@@ -126,7 +126,7 @@ export default function SharedConversationPage() {
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
         >
           <LogIn className="h-4 w-4" />
-          Continue Chatting
+          Login
         </button>
       </div>
 
