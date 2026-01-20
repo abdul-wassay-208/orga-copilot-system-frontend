@@ -85,7 +85,7 @@ const App = () => (
           <Route 
             path="/chat" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requireSubscription={true}>
                 <Index />
               </ProtectedRoute>
             } 

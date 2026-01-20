@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
@@ -41,11 +41,28 @@ type Subscription = IndividualSubscription | OrganizationSubscription;
 
 export default function ManageSubscriptionPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
   
   useEffect(() => {
     checkAccess();
+    
+    // Handle Stripe checkout redirect
+    const sessionId = searchParams.get("session_id");
+    const canceled = searchParams.get("canceled");
+    
+    if (sessionId) {
+      toast.success("Payment successful! Your subscription is now active.");
+      // Reload subscription data
+      setTimeout(() => {
+        if (!checkingRole) {
+          loadSubscription();
+        }
+      }, 1000);
+    } else if (canceled) {
+      toast.info("Payment was canceled. You can try again anytime.");
+    }
   }, []);
 
   const checkAccess = async () => {
@@ -78,36 +95,107 @@ export default function ManageSubscriptionPage() {
   // Mock: In real app, this would come from auth context
   const isOrganizationAdmin = userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN";
   
-  const [subscription] = useState<Subscription>(
-    isOrganizationAdmin
-      ? {
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showPlans, setShowPlans] = useState(false);
+  const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+  
+  useEffect(() => {
+    if (!checkingRole && userRole && !loadingRef.current) {
+      loadSubscription();
+    }
+  }, [checkingRole, userRole]);
+  
+  // Handle searchParams separately to avoid duplicate calls
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (sessionId && !loadingRef.current) {
+      loadSubscription();
+    }
+  }, [searchParams]);
+  
+  const loadSubscription = async () => {
+    if (loadingRef.current) return; // Prevent duplicate calls
+    loadingRef.current = true;
+    
+    try {
+      setLoading(true);
+      const [statusResponse, metricsResponse, meResponse] = await Promise.allSettled([
+        adminClient.get("/api/subscription/status"),
+        adminClient.get("/api/admin/tenant/usage/metrics"),
+        adminClient.get("/api/auth/me"),
+      ]);
+      
+      const status = statusResponse.status === 'fulfilled' ? statusResponse.value.data : null;
+      const metrics = metricsResponse.status === 'fulfilled' ? metricsResponse.value.data : {};
+      const me = meResponse.status === 'fulfilled' ? meResponse.value.data : {};
+      
+      if (status && status.hasSubscription) {
+        const isOrg = status.type === "organization";
+        setSubscription(isOrg ? {
           type: "organization",
-          organizationName: "Acme Inc",
-          plan: "Per-User Plan",
-          pricePerUser: 12,
-          activeUsers: 8,
+          organizationName: me.tenantName || status.organizationName || "Organization",
+          plan: status.plan.displayName,
+          pricePerUser: status.plan.isPerUser ? status.plan.price : 0,
+          activeUsers: metrics.currentUsers || 0,
           billingCycle: "Monthly",
-          status: "active",
-          renewalDate: new Date("2024-04-15"),
+          status: status.status.toLowerCase() as any,
+          renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(),
           coupon: null,
           usage: {
-            current: 4500,
-            limit: 10000,
+            current: metrics.messagesThisMonth || 0,
+            limit: status.plan.maxMessagesPerMonth || 0,
           },
-        }
-      : {
+        } : {
           type: "individual",
-          plan: "Professional",
+          plan: status.plan.displayName,
           billingCycle: "Monthly",
-          status: "active",
-          renewalDate: new Date("2024-04-15"),
+          status: status.status.toLowerCase() as any,
+          renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(),
           coupon: null,
           usage: {
-            current: 847,
-            limit: 1000,
+            current: metrics.messagesThisMonth || 0,
+            limit: status.plan.maxMessagesPerMonth || 0,
           },
-        }
-  );
+        });
+      } else {
+        // No subscription - default to FREE
+        setSubscription(isOrganizationAdmin ? {
+          type: "organization",
+          organizationName: me.tenantName || "Organization",
+          plan: "Free Plan",
+          pricePerUser: 0,
+          activeUsers: metrics.currentUsers || 0,
+          billingCycle: "Monthly",
+          status: "active",
+          renewalDate: new Date(),
+          coupon: null,
+          usage: {
+            current: metrics.messagesThisMonth || 0,
+            limit: 500,
+          },
+        } : {
+          type: "individual",
+          plan: "Free Plan",
+          billingCycle: "Monthly",
+          status: "active",
+          renewalDate: new Date(),
+          coupon: null,
+          usage: {
+            current: metrics.messagesThisMonth || 0,
+            limit: 500,
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error("Failed to load subscription:", error);
+      toast.error("Failed to load subscription information");
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  };
 
   const getStatusDisplay = (status: Subscription["status"]) => {
     switch (status) {
@@ -119,15 +207,55 @@ export default function ManageSubscriptionPage() {
         return { label: "Past Due", className: "bg-red-500/10 text-red-600 dark:text-red-400" };
       case "canceled":
         return { label: "Canceled", className: "bg-muted text-muted-foreground" };
+      default:
+        return { label: "Active", className: "bg-green-500/10 text-green-600 dark:text-green-400" };
     }
   };
 
-  const statusDisplay = getStatusDisplay(subscription.status);
-
-  const handleManageSubscription = () => {
-    window.open("https://billing.stripe.com/p/login/test", "_blank");
+  const handlePlanUpgrade = async (planName: string) => {
+    if (planName === "FREE") {
+      toast.info("You're already on the Free plan or can downgrade by canceling your current subscription.");
+      return;
+    }
+    
+    try {
+      const response = await adminClient.post("/api/subscription/create-checkout-session", {
+        planName: planName,
+      });
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error: any) {
+      console.error("Failed to create checkout session:", error);
+      toast.error(error?.response?.data?.message || "Failed to upgrade plan");
+    }
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      // Open Stripe customer portal for managing existing subscription
+      const response = await adminClient.post("/api/subscription/create-checkout-session", {
+        planName: subscription?.plan === "Free Plan" ? "STANDARD" : 
+                 subscription?.plan === "Standard Plan" ? "STANDARD" : "ENTERPRISE",
+      });
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error: any) {
+      console.error("Failed to create checkout session:", error);
+      toast.error(error?.response?.data?.message || "Failed to manage subscription");
+    }
+  };
+  
+  if (checkingRole || loading || !subscription) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const statusDisplay = getStatusDisplay(subscription.status);
   const isOrg = subscription.type === "organization";
   const monthlyEstimate = isOrg ? subscription.pricePerUser * subscription.activeUsers : null;
 
@@ -156,8 +284,30 @@ export default function ManageSubscriptionPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-        {/* Subscription Plans */}
-        <SubscriptionPlans />
+        {/* Subscription Plans - Only show when user wants to change plan */}
+        {showPlans && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-foreground">Change Plan</h2>
+              <button
+                onClick={() => {
+                  setShowPlans(false);
+                  setSelectedPlanForUpgrade(null);
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+            <SubscriptionPlans 
+              onSelectPlan={(planName) => {
+                setSelectedPlanForUpgrade(planName);
+                handlePlanUpgrade(planName);
+              }}
+              selectedPlanName={selectedPlanForUpgrade}
+            />
+          </div>
+        )}
 
         {/* Current Subscription Details */}
         <section className="space-y-6">
@@ -300,9 +450,17 @@ export default function ManageSubscriptionPage() {
 
           {/* Actions */}
           <div className="space-y-3">
+            {!showPlans && (
+              <button
+                onClick={() => setShowPlans(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                Change Plan
+              </button>
+            )}
             <button
               onClick={handleManageSubscription}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm font-medium text-foreground hover:bg-chat-hover transition-colors"
             >
               Manage Subscription
               <ExternalLink className="h-4 w-4" />

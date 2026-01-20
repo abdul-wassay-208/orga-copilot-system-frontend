@@ -19,11 +19,21 @@ import {
   AlertTriangle,
   Globe,
   Lock,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PrivacyDisclaimer } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 type Tab = "tenants" | "usage" | "knowledge" | "limits";
 
@@ -177,16 +187,25 @@ function TenantsTab() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
 
   useEffect(() => {
-    loadTenants();
-  }, []);
+    loadTenants(currentPage);
+  }, [currentPage]);
 
-  const loadTenants = async () => {
+  const loadTenants = async (page: number = 0) => {
     try {
       setLoading(true);
-      const response = await adminClient.get("/api/admin/super/tenants");
-      const backendTenants = response.data || [];
+      const response = await adminClient.get(`/api/admin/super/tenants?page=${page}&size=${pageSize}`);
+      const responseData = response.data || {};
+      const backendTenants = responseData.content || [];
+      
+      // Set pagination info
+      setTotalPages(responseData.totalPages || 0);
+      setTotalElements(responseData.totalElements || 0);
       
       // Also get metrics to calculate user counts and message usage
       const metricsResponse = await adminClient.get("/api/admin/super/metrics");
@@ -205,7 +224,7 @@ function TenantsTab() {
           usersCount: 0, // Will be calculated separately
           messagesUsed: 0, // Will be calculated separately
           messagesLimit: t.maxMessagesPerMonth || 0,
-          plan: t.subscriptionPlan || "BASIC",
+          plan: t.subscriptionPlan || "FREE",
           admin: t.admin ? {
             id: String(t.admin.id),
             email: t.admin.email,
@@ -237,7 +256,7 @@ function TenantsTab() {
       toast.success("Tenant created successfully");
       setShowAddDialog(false);
       setNewTenantName("");
-      await loadTenants();
+      await loadTenants(currentPage);
     } catch (error: any) {
       console.error("Failed to create tenant:", error);
       toast.error(error?.response?.data?.message || "Failed to create tenant");
@@ -354,7 +373,10 @@ function TenantsTab() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{tenants.length} organizations</p>
+        <p className="text-sm text-muted-foreground">
+          {totalElements} {totalElements === 1 ? 'organization' : 'organizations'}
+          {totalPages > 1 && ` (Page ${currentPage + 1} of ${totalPages})`}
+        </p>
         <button
           onClick={() => setShowAddDialog(true)}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -416,6 +438,91 @@ function TenantsTab() {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center pt-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 0) {
+                      setCurrentPage(currentPage - 1);
+                    }
+                  }}
+                  disabled={currentPage === 0}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                  )}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Previous</span>
+                </button>
+              </PaginationItem>
+              
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => {
+                // Show first page, last page, current page, and pages around current
+                const showPage = 
+                  i === 0 || 
+                  i === totalPages - 1 || 
+                  (i >= currentPage - 1 && i <= currentPage + 1);
+                
+                if (!showPage) {
+                  // Show ellipsis
+                  if (i === currentPage - 2 || i === currentPage + 2) {
+                    return (
+                      <PaginationItem key={i}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                }
+                
+                return (
+                  <PaginationItem key={i}>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(i);
+                      }}
+                      className={cn(
+                        "inline-flex items-center justify-center rounded-md h-10 w-10 text-sm font-medium transition-colors",
+                        i === currentPage
+                          ? "border border-input bg-background"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      {i + 1}
+                    </button>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages - 1) {
+                      setCurrentPage(currentPage + 1);
+                    }
+                  }}
+                  disabled={currentPage >= totalPages - 1}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                  )}
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Add Tenant Dialog */}
       {showAddDialog && (

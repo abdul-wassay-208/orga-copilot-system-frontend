@@ -41,6 +41,7 @@ export function ChatLayout() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const usageDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
 
   const activeConversation = conversations.find(
@@ -461,7 +462,7 @@ export function ChatLayout() {
           });
         }
 
-        // Refresh usage data
+        // Refresh usage data (debounced)
         loadUsageData();
         scrollToBottom();
         toast.success("Message updated and response regenerated");
@@ -806,7 +807,7 @@ export function ChatLayout() {
       if (error?.response?.status === 429) {
         const errorMessage = error?.response?.data?.message || "Monthly message limit reached";
         toast.error(errorMessage);
-        // Refresh usage data to update UI
+        // Refresh usage data to update UI (debounced)
         loadUsageData();
       } else {
         toast.error(error?.response?.data?.message || error?.response?.data?.error || "Failed to send message");
@@ -1007,46 +1008,67 @@ export function ChatLayout() {
               </div>
             )}
             
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin">
-              {activeConversation.messages
-                .filter((message) => {
-                  // Don't render empty placeholder messages - we'll show TypingIndicator instead
-                  return !(message.role === "assistant" && message.content === "" && isStreaming);
-                })
-                .map((message) => (
-                  <ChatMessage
-                    key={message.id}
-                    message={message}
-                    onEdit={handleSaveEdit}
-                    onDelete={handleDeleteMessage}
-                    isEditing={editingMessageId === message.id}
-                    onStartEdit={handleStartEdit}
-                    onCancelEdit={handleCancelEdit}
-                    editText={editText}
-                    onEditTextChange={setEditText}
-                  />
-                ))}
-              {/* Show typing indicator when streaming and we have an empty placeholder message */}
-              {isStreaming && 
-               activeConversation.messages.length > 0 && 
-               activeConversation.messages[activeConversation.messages.length - 1]?.role === "assistant" &&
-               activeConversation.messages[activeConversation.messages.length - 1]?.content === "" && (
-                <TypingIndicator />
-              )}
-              <div ref={messagesEndRef} className="h-4" />
-            </div>
+            {/* Show EmptyState when conversation has no messages */}
+            {activeConversation.messages.length === 0 ? (
+              <>
+                <EmptyState 
+                  onSelectPrompt={handleSendMessage} 
+                  disabled={usageData?.percentUsed >= 100}
+                />
+                <ChatInput 
+                  onSend={handleSendMessage} 
+                  disabled={isStreaming || (usageData?.percentUsed >= 100)}
+                  placeholder={usageData?.percentUsed >= 100 
+                    ? "Monthly message limit reached. Contact your administrator to upgrade."
+                    : "What's on your mind?"}
+                  showPromptChips={true}
+                  onSelectPrompt={handleSendMessage}
+                />
+              </>
+            ) : (
+              <>
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin">
+                  {activeConversation.messages
+                    .filter((message) => {
+                      // Don't render empty placeholder messages - we'll show TypingIndicator instead
+                      return !(message.role === "assistant" && message.content === "" && isStreaming);
+                    })
+                    .map((message) => (
+                      <ChatMessage
+                        key={message.id}
+                        message={message}
+                        onEdit={handleSaveEdit}
+                        onDelete={handleDeleteMessage}
+                        isEditing={editingMessageId === message.id}
+                        onStartEdit={handleStartEdit}
+                        onCancelEdit={handleCancelEdit}
+                        editText={editText}
+                        onEditTextChange={setEditText}
+                      />
+                    ))}
+                  {/* Show typing indicator when streaming and we have an empty placeholder message */}
+                  {isStreaming && 
+                   activeConversation.messages.length > 0 && 
+                   activeConversation.messages[activeConversation.messages.length - 1]?.role === "assistant" &&
+                   activeConversation.messages[activeConversation.messages.length - 1]?.content === "" && (
+                    <TypingIndicator />
+                  )}
+                  <div ref={messagesEndRef} className="h-4" />
+                </div>
 
-            {/* Input */}
-            <ChatInput 
-              onSend={handleSendMessage} 
-              disabled={isStreaming || (usageData?.percentUsed >= 100)}
-              placeholder={usageData?.percentUsed >= 100 
-                ? "Monthly message limit reached. Contact your administrator to upgrade."
-                : "What's on your mind?"}
-              showPromptChips={activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
-              onSelectPrompt={handleSendMessage}
-            />
+                {/* Input */}
+                <ChatInput 
+                  onSend={handleSendMessage} 
+                  disabled={isStreaming || (usageData?.percentUsed >= 100)}
+                  placeholder={usageData?.percentUsed >= 100 
+                    ? "Monthly message limit reached. Contact your administrator to upgrade."
+                    : "What's on your mind?"}
+                  showPromptChips={activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
+                  onSelectPrompt={handleSendMessage}
+                />
+              </>
+            )}
           </>
         )}
       </div>

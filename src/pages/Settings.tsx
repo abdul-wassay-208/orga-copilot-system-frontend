@@ -49,10 +49,10 @@ export default function SettingsPage() {
     loadUserData();
     loadUsageData();
     
-    // Refresh usage data every 30 seconds for near real-time updates
+    // Refresh usage data every 5 minutes (reduced from 30 seconds to reduce API calls)
     const interval = setInterval(() => {
       loadUsageData();
-    }, 30000);
+    }, 300000); // 5 minutes = 300000ms
     
     return () => clearInterval(interval);
   }, []);

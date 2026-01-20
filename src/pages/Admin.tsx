@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   X,
   Loader2,
   ChevronRight,
+  ChevronLeft,
   Info,
   FileText,
   Upload,
@@ -165,23 +166,32 @@ function UsersTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "employee">("employee");
   const [isInviting, setIsInviting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
   
   // Get tenant ID from URL query parameter (for super admin viewing specific tenant)
   const searchParams = new URLSearchParams(window.location.search);
   const tenantId = searchParams.get("tenant");
 
   useEffect(() => {
-    loadUsers();
-  }, [tenantId]);
+    loadUsers(currentPage);
+  }, [tenantId, currentPage]);
 
-  const loadUsers = async () => {
+  const loadUsers = async (page: number = 0) => {
     try {
       setLoading(true);
       const url = tenantId 
-        ? `/api/admin/tenant/users?tenantId=${tenantId}`
-        : "/api/admin/tenant/users";
+        ? `/api/admin/tenant/users?tenantId=${tenantId}&page=${page}&size=${pageSize}`
+        : `/api/admin/tenant/users?page=${page}&size=${pageSize}`;
       const response = await adminClient.get(url);
-      const backendUsers = response.data || [];
+      const responseData = response.data || {};
+      const backendUsers = responseData.content || [];
+      
+      // Set pagination info
+      setTotalPages(responseData.totalPages || 0);
+      setTotalElements(responseData.totalElements || 0);
       
       const transformed: User[] = backendUsers.map((u: any) => ({
         id: u.id ? String(u.id) : null,
@@ -219,7 +229,7 @@ function UsersTab() {
       setShowInviteDialog(false);
       setInviteEmail("");
       setInviteRole("employee");
-      await loadUsers();
+      await loadUsers(currentPage);
     } catch (error: any) {
       console.error("Failed to invite user:", error);
       toast.error(error?.response?.data?.message || "Failed to invite user");
@@ -234,7 +244,7 @@ function UsersTab() {
         email: email,
       });
       toast.success("Invitation resent successfully");
-      await loadUsers();
+      await loadUsers(currentPage);
     } catch (error: any) {
       console.error("Failed to resend invitation:", error);
       toast.error(error?.response?.data?.message || "Failed to resend invitation");
@@ -250,7 +260,7 @@ function UsersTab() {
       await adminClient.delete(`/api/admin/tenant/users/${id}`);
       toast.success("User removed successfully");
       setShowRemoveConfirm(null);
-      await loadUsers();
+      await loadUsers(currentPage);
     } catch (error: any) {
       console.error("Failed to remove user:", error);
       toast.error(error?.response?.data?.message || "Failed to remove user");
@@ -298,7 +308,15 @@ function UsersTab() {
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">{activeUsersCount}</p>
-              <p className="text-sm text-muted-foreground">Active users</p>
+              <p className="text-sm text-muted-foreground">
+                Active users
+                {totalElements > 0 && (
+                  <span className="ml-1">
+                    ({totalElements} {totalElements === 1 ? 'total' : 'total'}
+                    {totalPages > 1 && ` · Page ${currentPage + 1} of ${totalPages}`})
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <button
@@ -392,6 +410,85 @@ function UsersTab() {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center pt-4">
+          <nav className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                if (currentPage > 0) {
+                  setCurrentPage(currentPage - 1);
+                }
+              }}
+              disabled={currentPage === 0}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                currentPage === 0
+                  ? "pointer-events-none opacity-50"
+                  : "hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>Previous</span>
+            </button>
+            
+            {/* Page numbers */}
+            {Array.from({ length: totalPages }, (_, i) => {
+              // Show first page, last page, current page, and pages around current
+              const showPage = 
+                i === 0 || 
+                i === totalPages - 1 || 
+                (i >= currentPage - 1 && i <= currentPage + 1);
+              
+              if (!showPage) {
+                // Show ellipsis
+                if (i === currentPage - 2 || i === currentPage + 2) {
+                  return (
+                    <span key={i} className="flex h-10 w-10 items-center justify-center">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </span>
+                  );
+                }
+                return null;
+              }
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i)}
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-md h-10 w-10 text-sm font-medium transition-colors",
+                    i === currentPage
+                      ? "border border-input bg-background"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+            
+            <button
+              onClick={() => {
+                if (currentPage < totalPages - 1) {
+                  setCurrentPage(currentPage + 1);
+                }
+              }}
+              disabled={currentPage >= totalPages - 1}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                currentPage >= totalPages - 1
+                  ? "pointer-events-none opacity-50"
+                  : "hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <span>Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </nav>
+        </div>
+      )}
 
       {/* Invite Dialog */}
       {showInviteDialog && (
@@ -510,7 +607,7 @@ function UsersTab() {
 function BillingTab() {
   const [subscription, setSubscription] = useState({
     organizationName: "",
-    plan: "BASIC",
+    plan: "FREE",
     pricePerUser: 12,
     activeUsers: 0,
     status: "active" as "active" | "trial" | "past_due" | "grace",
@@ -523,36 +620,63 @@ function BillingTab() {
     },
   });
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
-    loadBillingData();
+    if (!loadingRef.current) {
+      loadBillingData();
+    }
   }, []);
 
   const loadBillingData = async () => {
+    if (loadingRef.current) return; // Prevent duplicate calls
+    loadingRef.current = true;
+    
     try {
       setLoading(true);
-      const [metricsResponse, meResponse] = await Promise.allSettled([
+      const [statusResponse, metricsResponse, meResponse] = await Promise.allSettled([
+        adminClient.get("/api/subscription/status"),
         adminClient.get("/api/admin/tenant/usage/metrics"),
         adminClient.get("/api/auth/me"),
       ]);
       
+      const status = statusResponse.status === 'fulfilled' ? statusResponse.value.data : null;
       const metrics = metricsResponse.status === 'fulfilled' ? metricsResponse.value.data : {};
       const me = meResponse.status === 'fulfilled' ? meResponse.value.data : {};
       
-      setSubscription({
-        organizationName: me.tenantName || "Organization",
-        plan: metrics.subscriptionPlan || "BASIC",
-        pricePerUser: 12, // Default pricing
-        activeUsers: metrics.currentUsers || 0,
-        status: "active",
-        renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        graceDaysRemaining: 0,
-        coupon: null,
-        usage: {
-          current: metrics.messagesThisMonth || 0,
-          limit: metrics.maxMessagesPerMonth || 0,
-        },
-      });
+      if (status && status.hasSubscription) {
+        const plan = status.plan || {};
+        setSubscription({
+          organizationName: me.tenantName || status.organizationName || "Organization",
+          plan: plan.displayName || plan.name || "Free Plan",
+          pricePerUser: plan.isPerUser ? plan.price || 0 : 0,
+          activeUsers: metrics.currentUsers || 0,
+          status: status.status?.toLowerCase() || "active",
+          renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          graceDaysRemaining: 0,
+          coupon: null,
+          usage: {
+            current: metrics.messagesThisMonth || 0,
+            limit: plan.maxMessagesPerMonth || metrics.maxMessagesPerMonth || 0,
+          },
+        });
+      } else {
+        // No subscription - default to FREE
+        setSubscription({
+          organizationName: me.tenantName || "Organization",
+          plan: "Free Plan",
+          pricePerUser: 0,
+          activeUsers: metrics.currentUsers || 0,
+          status: "active",
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          graceDaysRemaining: 0,
+          coupon: null,
+          usage: {
+            current: metrics.messagesThisMonth || 0,
+            limit: metrics.maxMessagesPerMonth || 500,
+          },
+        });
+      }
     } catch (error: any) {
       console.error("Failed to load billing data:", error);
       // Don't show error toast if it's just a 403 (user might not have admin access)
@@ -561,10 +685,13 @@ function BillingTab() {
       }
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
-  const monthlyEstimate = subscription.pricePerUser * subscription.activeUsers;
+  const monthlyEstimate = subscription.pricePerUser > 0 
+    ? subscription.pricePerUser * subscription.activeUsers 
+    : 0;
   const usagePercent = subscription.usage.limit > 0 
     ? (subscription.usage.current / subscription.usage.limit) * 100 
     : 0;
@@ -610,11 +737,20 @@ function BillingTab() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
-          <div>
-            <p className="text-xs text-muted-foreground">Price per user</p>
-            <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.pricePerUser}</p>
-            <p className="text-xs text-muted-foreground">/month</p>
-          </div>
+          {subscription.pricePerUser > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Price per user</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.pricePerUser}</p>
+              <p className="text-xs text-muted-foreground">/month</p>
+            </div>
+          )}
+          {subscription.pricePerUser === 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Plan type</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">Free</p>
+              <p className="text-xs text-muted-foreground">Plan</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-muted-foreground">Active users</p>
             <p className="text-lg font-semibold text-foreground mt-0.5">{subscription.activeUsers}</p>
