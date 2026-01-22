@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2, AlertTriangle, CreditCard, ChevronRight, CheckCircle, Shield, Lock } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, AlertTriangle, CreditCard, ChevronRight, CheckCircle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/hooks/useTheme";
@@ -628,7 +628,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Shield className="h-4 w-4 text-primary" />
+                  <Lock className="h-4 w-4 text-primary" />
                   <h3 className="text-sm font-semibold text-foreground">
                     Two-Factor Authentication
                   </h3>
@@ -695,7 +695,7 @@ export default function SettingsPage() {
             {/* Data Storage & Encryption */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
+                <Lock className="h-4 w-4 text-primary" />
                 Data Encryption
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -726,7 +726,7 @@ export default function SettingsPage() {
             {/* Training Usage Policy */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
+                <Lock className="h-4 w-4 text-primary" />
                 AI Training Usage Policy
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">

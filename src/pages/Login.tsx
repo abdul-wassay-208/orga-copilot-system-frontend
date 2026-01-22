@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, Play, Shield, Mail } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Play, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,22 +129,14 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
+          
           <h1 className="text-2xl font-semibold text-foreground">Welcome to Evo Associate</h1>
           <p className="text-sm text-muted-foreground">
             Your AI-powered enterprise assistant
           </p>
         </div>
 
-        {/* Privacy assurance - prominent */}
-        <div className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg bg-primary/5 border border-primary/10">
-          <Lock className="h-4 w-4 text-primary flex-shrink-0" />
-          <p className="text-sm text-foreground/80">
-            Conversations are private and never visible to admins
-          </p>
-        </div>
+       
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">

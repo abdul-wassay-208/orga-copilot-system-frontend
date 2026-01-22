@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Users,
@@ -19,7 +19,7 @@ import {
   Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PrivacyDisclaimer, PrivacyBadge } from "@/components/UsageLimitStates";
+import {  PrivacyBadge } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ interface User {
   role: "admin" | "employee";
   status: "active" | "pending";
   messagesUsed?: number;
+  messagesLimit?: number;
   invitationTokenId?: number;
 }
 
@@ -115,16 +116,14 @@ export default function AdminPage() {
               <p className="text-xs text-muted-foreground">Manage your organization</p>
             </div>
           </div>
-          <div className="flex-shrink-0">
-            <PrivacyBadge />
-          </div>
+          
         </div>
       </header>
 
       {/* Privacy disclaimer */}
-      <div className="max-w-4xl mx-auto px-4 pt-4">
+      {/* <div className="max-w-4xl mx-auto px-4 pt-4">
         <PrivacyDisclaimer />
-      </div>
+      </div> */}
 
       {/* Tabs */}
       <div className="border-b border-border sticky top-[73px] bg-background z-10">
@@ -200,6 +199,7 @@ function UsersTab() {
         role: u.role === "TENANT_ADMIN" ? "admin" : "employee",
         status: u.status === "PENDING" ? "pending" : "active",
         messagesUsed: u.messagesUsed || 0,
+        messagesLimit: u.messagesLimit || u.maxMessagesPerMonth || 500, // Use API value, fallback to 500
         invitationTokenId: u.invitationTokenId,
       }));
       
@@ -350,13 +350,13 @@ function UsersTab() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
               {/* Usage bar - numbers only, no content */}
-              {user.messagesUsed !== undefined && (
+              {user.messagesUsed !== undefined && user.messagesLimit !== undefined && (
                 <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
-                  <span>{user.messagesUsed}</span>
+                  <span>{user.messagesUsed} / {user.messagesLimit}</span>
                   <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div 
                       className="h-full rounded-full bg-primary/60" 
-                      style={{ width: `${Math.min((user.messagesUsed / 500) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
@@ -605,10 +605,12 @@ function UsersTab() {
 
 
 function BillingTab() {
+  const [searchParams] = useSearchParams();
   const [subscription, setSubscription] = useState({
     organizationName: "",
     plan: "FREE",
     pricePerUser: 12,
+    planPrice: 0, // Fixed price for non-per-user plans
     activeUsers: 0,
     status: "active" as "active" | "trial" | "past_due" | "grace",
     renewalDate: new Date(),
@@ -622,11 +624,40 @@ function BillingTab() {
   const [loading, setLoading] = useState(true);
   const loadingRef = useRef(false);
 
+  // Handle Stripe checkout redirect first, then load data
   useEffect(() => {
-    if (!loadingRef.current) {
+    const sessionId = searchParams.get("session_id");
+    if (sessionId) {
+      // Verify checkout first, then load data
+      verifyCheckoutSession(sessionId);
+    } else if (!loadingRef.current) {
+      // Only load data if no session_id (normal page load)
       loadBillingData();
     }
-  }, []);
+  }, [searchParams]);
+
+  const verifyCheckoutSession = async (sessionId: string) => {
+    if (loadingRef.current) return; // Prevent duplicate calls
+    
+    try {
+      setLoading(true);
+      const response = await adminClient.post("/api/subscription/verify-checkout", {
+        sessionId: sessionId,
+      });
+      if (response.data.success) {
+        toast.success("Payment successful! Your subscription is now active.");
+      }
+    } catch (error: any) {
+      console.error("Failed to verify checkout:", error);
+      // Still try to reload in case webhook already processed it
+      toast.success("Payment successful! Verifying subscription...");
+    }
+    
+    // Always reload billing data after verification attempt
+    // Reset loadingRef to allow loadBillingData to run
+    loadingRef.current = false;
+    await loadBillingData();
+  };
 
   const loadBillingData = async () => {
     if (loadingRef.current) return; // Prevent duplicate calls
@@ -650,6 +681,7 @@ function BillingTab() {
           organizationName: me.tenantName || status.organizationName || "Organization",
           plan: plan.displayName || plan.name || "Free Plan",
           pricePerUser: plan.isPerUser ? plan.price || 0 : 0,
+          planPrice: plan.isPerUser ? 0 : (plan.price || 0), // Fixed price for non-per-user plans
           activeUsers: metrics.currentUsers || 0,
           status: status.status?.toLowerCase() || "active",
           renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -666,6 +698,7 @@ function BillingTab() {
           organizationName: me.tenantName || "Organization",
           plan: "Free Plan",
           pricePerUser: 0,
+          planPrice: 0,
           activeUsers: metrics.currentUsers || 0,
           status: "active",
           renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -691,7 +724,7 @@ function BillingTab() {
 
   const monthlyEstimate = subscription.pricePerUser > 0 
     ? subscription.pricePerUser * subscription.activeUsers 
-    : 0;
+    : subscription.planPrice; // Use fixed plan price if not per-user
   const usagePercent = subscription.usage.limit > 0 
     ? (subscription.usage.current / subscription.usage.limit) * 100 
     : 0;
@@ -744,11 +777,18 @@ function BillingTab() {
               <p className="text-xs text-muted-foreground">/month</p>
             </div>
           )}
-          {subscription.pricePerUser === 0 && (
+          {subscription.pricePerUser === 0 && subscription.planPrice === 0 && subscription.plan.toLowerCase().includes("free") && (
             <div>
               <p className="text-xs text-muted-foreground">Plan type</p>
               <p className="text-lg font-semibold text-foreground mt-0.5">Free</p>
               <p className="text-xs text-muted-foreground">Plan</p>
+            </div>
+          )}
+          {subscription.pricePerUser === 0 && subscription.planPrice > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Plan price</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.planPrice}</p>
+              <p className="text-xs text-muted-foreground">/month</p>
             </div>
           )}
           <div>

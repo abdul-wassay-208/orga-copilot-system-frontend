@@ -12,7 +12,6 @@ import {
   Upload,
   Loader2,
   ChevronRight,
-  Shield,
   Users,
   MessageSquare,
   X,
@@ -22,7 +21,6 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PrivacyDisclaimer } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import {
@@ -102,7 +100,6 @@ export default function SuperAdminPage() {
   const tabs = [
     { id: "tenants" as Tab, label: "Tenants", icon: Building2 },
     { id: "usage" as Tab, label: "Usage Overview", icon: BarChart3 },
-    { id: "limits" as Tab, label: "Default Limits", icon: Settings },
   ];
 
   if (checkingRole) {
@@ -143,9 +140,9 @@ export default function SuperAdminPage() {
       </header>
 
       {/* Privacy disclaimer */}
-      <div className="max-w-5xl mx-auto px-4 pt-4">
+      {/* <div className="max-w-5xl mx-auto px-4 pt-4">
         <PrivacyDisclaimer />
-      </div>
+      </div> */}
 
       {/* Tabs */}
       <div className="border-b border-border sticky top-[73px] bg-background z-10">
@@ -222,8 +219,8 @@ function TenantsTab() {
           name: t.name,
           status,
           usersCount: 0, // Will be calculated separately
-          messagesUsed: 0, // Will be calculated separately
-          messagesLimit: t.maxMessagesPerMonth || 0,
+          messagesUsed: t.messagesUsed || 0, // Use API value from backend
+          messagesLimit: t.messagesLimit || t.maxMessagesPerMonth || 0, // Use messagesLimit first, fallback to maxMessagesPerMonth
           plan: t.subscriptionPlan || "FREE",
           admin: t.admin ? {
             id: String(t.admin.id),
@@ -414,7 +411,7 @@ function TenantsTab() {
             <div className="flex items-center gap-4">
               {/* Usage bar - numbers only */}
               <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{tenant.messagesUsed.toLocaleString()}</span>
+                <span>{tenant.messagesUsed.toLocaleString()} / {tenant.messagesLimit.toLocaleString()}</span>
                 <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
                   <div
                     className={cn(
@@ -595,17 +592,20 @@ function UsageOverviewTab() {
   const loadUsageData = async () => {
     try {
       setLoading(true);
+      // Fetch all tenants without pagination for usage overview
       const [tenantsResponse, metricsResponse] = await Promise.all([
-        adminClient.get("/api/admin/super/tenants"),
+        adminClient.get("/api/admin/super/tenants?page=0&size=1000"), // Get all tenants
         adminClient.get("/api/admin/super/metrics"),
       ]);
       
-      const tenants = tenantsResponse.data || [];
+      // Handle paginated response - extract content array
+      const responseData = tenantsResponse.data || {};
+      const tenants = responseData.content || [];
       const metrics = metricsResponse.data || {};
       
       // Calculate totals
       const totalMessages = tenants.reduce((acc: number, t: any) => acc + (t.messagesUsed || 0), 0);
-      const totalLimit = tenants.reduce((acc: number, t: any) => acc + (t.maxMessagesPerMonth || 0), 0);
+      const totalLimit = tenants.reduce((acc: number, t: any) => acc + (t.messagesLimit || t.maxMessagesPerMonth || 0), 0);
       
       setUsageData({
         totalMessages,
@@ -619,7 +619,7 @@ function UsageOverviewTab() {
         .map((t: any) => ({
           name: t.name,
           usage: t.messagesUsed || 0,
-          limit: t.maxMessagesPerMonth || 0,
+          limit: t.messagesLimit || t.maxMessagesPerMonth || 0,
         }))
         .sort((a, b) => b.usage - a.usage)
         .slice(0, 10);
@@ -736,7 +736,7 @@ function GlobalKnowledgeTab() {
     <div className="space-y-6">
       {/* Privacy note */}
       <div className="flex items-start gap-2.5 p-4 rounded-xl bg-primary/5 border border-primary/10">
-        <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+        <Lock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
         <p className="text-sm text-foreground/80">
           Knowledge base content helps guide AI responses but does not override user privacy.
           Admins cannot view conversation content.
