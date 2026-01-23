@@ -14,8 +14,8 @@ const examplePrompts = [
 
 export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12">
-      <div className="max-w-xl w-full text-center space-y-8">
+    <div className="flex-1 flex flex-col items-center justify-start px-4 py-4 md:py-8 lg:py-12 overflow-y-auto min-h-0">
+      <div className="max-w-xl w-full text-center space-y-6 md:space-y-8 py-4 md:py-8">
         {/* Icon */}
         <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center animate-scale-in">
           <MessageCircle className="h-8 w-8 text-primary" />
@@ -56,9 +56,9 @@ export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps
         </div>
 
         {/* Privacy note */}
-        <div className="pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/50 border border-border">
-            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+        <div className="pt-2 md:pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
+          <div className="inline-flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-full bg-muted/50 border border-border">
+            <Lock className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground flex-shrink-0" />
             <p className="text-xs text-muted-foreground">
               This space is for reflection, not evaluation.
             </p>
