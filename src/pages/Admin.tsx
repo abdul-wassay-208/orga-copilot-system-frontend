@@ -41,6 +41,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("users");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
@@ -50,11 +51,14 @@ export default function AdminPage() {
   const checkAccess = async () => {
     try {
       const response = await adminClient.get("/api/auth/me");
-      const role = response.data?.role;
+      const role = response.data?.role; // Primary role for backward compatibility
+      const roles = response.data?.roles || [role]; // All roles array
       setUserRole(role);
+      setUserRoles(roles);
       
       // Redirect if not tenant admin or super admin
-      if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
+      const hasAdminAccess = roles.includes("TENANT_ADMIN") || roles.includes("SUPER_ADMIN");
+      if (!hasAdminAccess) {
         toast.error("Access denied. Tenant admin access required.");
         navigate("/chat", { replace: true });
         return;
@@ -74,14 +78,6 @@ export default function AdminPage() {
     }
   };
 
-  // Only show billing tab for admins (TENANT_ADMIN or SUPER_ADMIN), not employees
-  const tabs = [
-    { id: "users" as Tab, label: "Users", icon: Users },
-    ...(userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN"
-      ? [{ id: "billing" as Tab, label: "Billing", icon: CreditCard }]
-      : []),
-  ];
-
   if (checkingRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -90,9 +86,18 @@ export default function AdminPage() {
     );
   }
 
-  if (userRole !== "TENANT_ADMIN" && userRole !== "SUPER_ADMIN") {
+  // Only show billing tab for admins (TENANT_ADMIN or SUPER_ADMIN), not employees
+  const hasAdminAccess = userRoles.includes("TENANT_ADMIN") || userRoles.includes("SUPER_ADMIN");
+  if (!hasAdminAccess) {
     return null; // Will redirect via checkAccess
   }
+
+  const tabs = [
+    { id: "users" as Tab, label: "Users", icon: Users },
+    ...(hasAdminAccess
+      ? [{ id: "billing" as Tab, label: "Billing", icon: CreditCard }]
+      : []),
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,9 +114,18 @@ export default function AdminPage() {
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-foreground">Admin</h1>
-                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium whitespace-nowrap">
-                  Organization
-                </span>
+                {userRoles.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {userRoles.map((role) => (
+                      <span
+                        key={role}
+                        className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium whitespace-nowrap"
+                      >
+                        {role === "SUPER_ADMIN" ? "Super Admin" : role === "TENANT_ADMIN" ? "Tenant Admin" : role}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">Manage your organization</p>
             </div>

@@ -30,6 +30,7 @@ export function ChatLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [usageData, setUsageData] = useState<{
     messagesUsed: number;
     messagesLimit: number;
@@ -91,9 +92,11 @@ export function ChatLayout() {
   const loadUserRole = async () => {
     try {
       const response = await adminClient.get("/api/auth/me");
-      const role = response.data?.role;
+      const role = response.data?.role; // Primary role for backward compatibility
+      const roles = response.data?.roles || [role]; // All roles array
       if (role) {
         setUserRole(role);
+        setUserRoles(roles);
       }
     } catch (error: any) {
       console.error("Failed to load user role:", error);
@@ -879,8 +882,8 @@ export function ChatLayout() {
           onRenameConversation={handleRenameConversation}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          isTenantAdmin={userRole === "TENANT_ADMIN"}
-          isSuperAdmin={userRole === "SUPER_ADMIN"}
+          isTenantAdmin={userRoles.includes("TENANT_ADMIN")}
+          isSuperAdmin={userRoles.includes("SUPER_ADMIN")}
         />
       </div>
 

@@ -64,6 +64,7 @@ export default function SuperAdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("tenants");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
@@ -73,11 +74,13 @@ export default function SuperAdminPage() {
   const checkAccess = async () => {
     try {
       const response = await adminClient.get("/api/auth/me");
-      const role = response.data?.role;
+      const role = response.data?.role; // Primary role for backward compatibility
+      const roles = response.data?.roles || [role]; // All roles array
       setUserRole(role);
+      setUserRoles(roles);
       
       // Redirect if not super admin
-      if (role !== "SUPER_ADMIN") {
+      if (!roles.includes("SUPER_ADMIN")) {
         toast.error("Access denied. Super admin access required.");
         navigate("/chat", { replace: true });
         return;
@@ -110,7 +113,7 @@ export default function SuperAdminPage() {
     );
   }
 
-  if (userRole !== "SUPER_ADMIN") {
+  if (!userRoles.includes("SUPER_ADMIN")) {
     return null; // Will redirect via checkAccess
   }
 
@@ -127,11 +130,26 @@ export default function SuperAdminPage() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold text-foreground">Super Admin</h1>
-                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                  Platform
-                </span>
+                {userRoles.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {userRoles.map((role) => (
+                      <span
+                        key={role}
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                          role === "SUPER_ADMIN"
+                            ? "bg-primary/10 text-primary"
+                            : role === "TENANT_ADMIN"
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {role === "SUPER_ADMIN" ? "Super Admin" : role === "TENANT_ADMIN" ? "Tenant Admin" : role}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">Manage all organizations</p>
             </div>
