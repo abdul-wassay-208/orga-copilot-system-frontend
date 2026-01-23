@@ -6,10 +6,10 @@ interface EmptyStateProps {
 }
 
 const examplePrompts = [
-  { text: "Prepare for a difficult conversation", icon: "💬" },
-  { text: "Think through a team decision", icon: "🤔" },
-  { text: "Navigate a challenging situation", icon: "🧭" },
-  { text: "Explore leadership approach", icon: "💡" },
+  { text: "My team keeps running into the same problems no matter what we try.", icon: "💬" },
+  { text: "We have talented people, but something's not clicking as a team.", icon: "🤔" },
+  { text: "How do I step back as a leader without everything falling apart?", icon: "🧭" },
+  { text: "What does a truly healthy team actually look like?", icon: "💡" },
 ];
 
 export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps) {

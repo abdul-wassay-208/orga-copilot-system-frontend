@@ -11,9 +11,10 @@ interface ChatInputProps {
 }
 
 const quickPrompts = [
-  "Help me prepare",
-  "Guide my thinking",
-  "Give me perspective",
+  "My team keeps running into the same problems no matter what we try.",
+  "We have talented people, but something's not clicking as a team.",
+  "How do I step back as a leader without everything falling apart?",
+  "What does a truly healthy team actually look like?",
 ];
 
 export function ChatInput({
