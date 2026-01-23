@@ -32,28 +32,7 @@ export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps
           </p>
         </div>
 
-        {/* Example prompts */}
-        <div className="space-y-4 pt-2 animate-fade-in" style={{ animationDelay: "100ms" }}>
-          <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Start a conversation</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg mx-auto">
-            {examplePrompts.map((prompt, index) => (
-              <button
-                key={index}
-                onClick={() => !disabled && onSelectPrompt(prompt.text)}
-                disabled={disabled}
-                className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-chat-input-border bg-chat-input-bg hover:bg-chat-hover hover:border-chat-input-focus/50 transition-all duration-150 text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-chat-input-bg disabled:hover:border-chat-input-border"
-              >
-                <span className="text-lg">{prompt.icon}</span>
-                <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors">
-                  {prompt.text}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+   
 
         {/* Privacy note */}
         <div className="pt-2 md:pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
