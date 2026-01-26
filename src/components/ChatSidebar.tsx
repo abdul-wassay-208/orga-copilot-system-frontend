@@ -34,7 +34,6 @@ export function ChatSidebar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("User");
 
   // Load user name on mount
@@ -65,15 +64,6 @@ export function ChatSidebar({
     }
     setEditingId(null);
     setEditTitle("");
-  };
-
-  const handleDeleteClick = (id: string) => {
-    setShowDeleteConfirm(id);
-  };
-
-  const handleConfirmDelete = (id: string) => {
-    onDeleteConversation(id);
-    setShowDeleteConfirm(null);
   };
 
   if (isCollapsed) {
@@ -150,10 +140,7 @@ export function ChatSidebar({
                     : "hover:bg-sidebar-hover"
                 )}
                 onMouseEnter={() => setHoveredId(conv.id)}
-                onMouseLeave={() => {
-                  setHoveredId(null);
-                  if (showDeleteConfirm === conv.id) setShowDeleteConfirm(null);
-                }}
+                onMouseLeave={() => setHoveredId(null)}
                 onClick={() => onSelectConversation(conv.id)}
               >
                 <div className="flex-1 flex items-center gap-2.5 px-3 py-2.5 min-w-0">
@@ -185,52 +172,26 @@ export function ChatSidebar({
                 {/* Actions on hover */}
                 {hoveredId === conv.id && editingId !== conv.id && (
                   <div className="flex items-center gap-0.5 pr-2 animate-fade-in">
-                    {showDeleteConfirm === conv.id ? (
-                      <div className="flex items-center gap-1 bg-destructive/10 rounded px-2 py-1">
-                        <span className="text-xs text-destructive">Delete?</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleConfirmDelete(conv.id);
-                          }}
-                          className="text-xs text-destructive font-medium hover:underline"
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteConfirm(null);
-                          }}
-                          className="text-xs text-muted-foreground hover:underline"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEdit(conv);
-                          }}
-                          className="p-1.5 rounded transition-colors hover:bg-sidebar-hover text-sidebar-foreground/50 hover:text-sidebar-foreground"
-                          aria-label="Rename conversation"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(conv.id);
-                          }}
-                          className="p-1.5 rounded transition-colors hover:bg-destructive/10 text-sidebar-foreground/50 hover:text-destructive"
-                          aria-label="Delete conversation"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit(conv);
+                      }}
+                      className="p-1.5 rounded transition-colors hover:bg-sidebar-hover text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                      aria-label="Rename conversation"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteConversation(conv.id);
+                      }}
+                      className="p-1.5 rounded transition-colors hover:bg-destructive/10 text-sidebar-foreground/50 hover:text-destructive"
+                      aria-label="Delete conversation"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 )}
               </div>

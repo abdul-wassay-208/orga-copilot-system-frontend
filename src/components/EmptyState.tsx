@@ -32,17 +32,15 @@ export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps
           </p>
         </div>
 
-   
-
         {/* Privacy note */}
-        <div className="pt-2 md:pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
+        {/* <div className="pt-2 md:pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
           <div className="inline-flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-full bg-muted/50 border border-border">
             <Lock className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground flex-shrink-0" />
             <p className="text-xs text-muted-foreground">
               This space is for reflection, not evaluation.
             </p>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

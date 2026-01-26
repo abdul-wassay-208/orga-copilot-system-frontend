@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { chatClient, adminClient } from "@/lib/api-client";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -44,6 +45,7 @@ export function ChatLayout() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const usageDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
@@ -272,16 +274,8 @@ export function ChatLayout() {
   };
 
   const handleLogout = () => {
-    // Clear tokens
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userRole");
-    
-    // Show success message
-    toast.success("Logged out successfully");
-    
-    // Redirect to login
-    navigate("/login", { replace: true });
+    // Use the logout function from AuthContext to prevent duplicate calls
+    logout();
   };
 
   const handleStartEdit = (messageId: string) => {

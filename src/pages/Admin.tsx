@@ -112,21 +112,7 @@ export default function AdminPage() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-semibold text-foreground">Admin</h1>
-                {userRoles.length > 0 && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {userRoles.map((role) => (
-                      <span
-                        key={role}
-                        className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium whitespace-nowrap"
-                      >
-                        {role === "SUPER_ADMIN" ? "Super Admin" : role === "TENANT_ADMIN" ? "Tenant Admin" : role}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <h1 className="text-lg font-semibold text-foreground">Admin</h1>
               <p className="text-xs text-muted-foreground">Manage your organization</p>
             </div>
           </div>

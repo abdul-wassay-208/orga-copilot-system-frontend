@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient, adminClient } from '@/lib/api-client';
 import { toast } from 'sonner';
@@ -31,6 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const isLoggingOutRef = useRef<boolean>(false);
   const navigate = useNavigate();
 
   const storeToken = (token: string) => {
@@ -71,11 +72,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const logout = useCallback(() => {
+    // Prevent multiple logout calls
+    if (isLoggingOutRef.current) {
+      return;
+    }
+    
+    isLoggingOutRef.current = true;
     removeToken();
     setIsAuthenticated(false);
     setUser(null);
+    
+    // Cancel any pending requests by clearing the token from axios
+    // The interceptor will handle 401/403 errors without triggering another logout
+    
     toast.info("You have been logged out.");
     navigate("/login", { replace: true });
+    
+    // Reset the flag after a short delay to allow navigation to complete
+    setTimeout(() => {
+      isLoggingOutRef.current = false;
+    }, 1000);
   }, [navigate]);
 
   const refreshUser = useCallback(async () => {
@@ -154,7 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (error) => {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
           // Token expired or invalid
-          if (isAuthenticated) {
+          // Only trigger logout if not already logging out and user was authenticated
+          if (isAuthenticated && !isLoggingOutRef.current) {
             logout();
           }
         }
