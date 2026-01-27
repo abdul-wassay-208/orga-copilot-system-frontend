@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User, Shield, Lock } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User, Lock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Conversation } from "@/types/chat";
@@ -34,7 +34,6 @@ export function ChatSidebar({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>("User");
 
   // Load user name on mount
@@ -67,15 +66,6 @@ export function ChatSidebar({
     setEditTitle("");
   };
 
-  const handleDeleteClick = (id: string) => {
-    setShowDeleteConfirm(id);
-  };
-
-  const handleConfirmDelete = (id: string) => {
-    onDeleteConversation(id);
-    setShowDeleteConfirm(null);
-  };
-
   if (isCollapsed) {
     return (
       <div className="w-0 md:w-14 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-3 transition-all duration-200">
@@ -98,7 +88,8 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left">
+    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left overflow-hidden">
+
       {/* Header with product name - Sticky */}
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
         <div className="flex items-center justify-between">
@@ -126,7 +117,7 @@ export function ChatSidebar({
       </div>
 
       {/* Conversation List - Scrollable */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin py-2 min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin py-2 min-h-0">
         {conversations.length === 0 ? (
           <div className="px-3 py-8 text-center">
             <MessageSquare className="h-8 w-8 text-sidebar-foreground/20 mx-auto mb-2" />
@@ -149,10 +140,7 @@ export function ChatSidebar({
                     : "hover:bg-sidebar-hover"
                 )}
                 onMouseEnter={() => setHoveredId(conv.id)}
-                onMouseLeave={() => {
-                  setHoveredId(null);
-                  if (showDeleteConfirm === conv.id) setShowDeleteConfirm(null);
-                }}
+                onMouseLeave={() => setHoveredId(null)}
                 onClick={() => onSelectConversation(conv.id)}
               >
                 <div className="flex-1 flex items-center gap-2.5 px-3 py-2.5 min-w-0">
@@ -184,52 +172,26 @@ export function ChatSidebar({
                 {/* Actions on hover */}
                 {hoveredId === conv.id && editingId !== conv.id && (
                   <div className="flex items-center gap-0.5 pr-2 animate-fade-in">
-                    {showDeleteConfirm === conv.id ? (
-                      <div className="flex items-center gap-1 bg-destructive/10 rounded px-2 py-1">
-                        <span className="text-xs text-destructive">Delete?</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleConfirmDelete(conv.id);
-                          }}
-                          className="text-xs text-destructive font-medium hover:underline"
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowDeleteConfirm(null);
-                          }}
-                          className="text-xs text-muted-foreground hover:underline"
-                        >
-                          No
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartEdit(conv);
-                          }}
-                          className="p-1.5 rounded transition-colors hover:bg-sidebar-hover text-sidebar-foreground/50 hover:text-sidebar-foreground"
-                          aria-label="Rename conversation"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(conv.id);
-                          }}
-                          className="p-1.5 rounded transition-colors hover:bg-destructive/10 text-sidebar-foreground/50 hover:text-destructive"
-                          aria-label="Delete conversation"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartEdit(conv);
+                      }}
+                      className="p-1.5 rounded transition-colors hover:bg-sidebar-hover text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                      aria-label="Rename conversation"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteConversation(conv.id);
+                      }}
+                      className="p-1.5 rounded transition-colors hover:bg-destructive/10 text-sidebar-foreground/50 hover:text-destructive"
+                      aria-label="Delete conversation"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -248,8 +210,8 @@ export function ChatSidebar({
                 to="/admin"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
               >
-                <Shield className="h-4 w-4" />
-                Tenant Admin
+                <Settings className="h-4 w-4" />
+                Admin
               </Link>
             )}
             {isSuperAdmin && (
@@ -257,7 +219,7 @@ export function ChatSidebar({
                 to="/super-admin"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
               >
-                <Shield className="h-4 w-4" />
+                <Settings className="h-4 w-4" />
                 Super Admin
               </Link>
             )}

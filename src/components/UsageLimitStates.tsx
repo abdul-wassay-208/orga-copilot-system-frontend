@@ -1,4 +1,4 @@
-import { AlertTriangle, XCircle, Clock, Shield } from "lucide-react";
+import { AlertTriangle, XCircle, Clock, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UsageBannerProps {
@@ -150,19 +150,18 @@ export function PrivacyBadge({ className }: { className?: string }) {
         className
       )}
     >
-      <Shield className="h-3 w-3 text-primary" />
-      <span className="text-xs font-medium text-primary">Private by Design</span>
+      {/* <Lock className="h-3 w-3 text-primary" /> */}
     </div>
   );
 }
 
-export function PrivacyDisclaimer() {
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
-      <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-      <p className="text-xs text-muted-foreground">
-        Admins cannot view conversation content. Only usage numbers are visible.
-      </p>
-    </div>
-  );
-}
+// export function PrivacyDisclaimer() {
+//   return (
+//     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border">
+//       {/* <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" /> */}
+//       <p className="text-xs text-muted-foreground">
+//         Admins cannot view conversation content. Only usage numbers are visible.
+//       </p>
+//     </div>
+//   );
+// }

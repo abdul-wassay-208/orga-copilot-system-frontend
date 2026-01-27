@@ -1,16 +1,30 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Lock, Play, Shield } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Eye, EyeOff, Loader2, Lock, Play, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isAuthenticated } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [twoFactorCode, setTwoFactorCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string; twoFactorCode?: string }>({});
+  
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = (location.state as any)?.from || "/chat";
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -33,35 +47,80 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    
+    if (requiresTwoFactor) {
+      // Validate 2FA code
+      if (!twoFactorCode || twoFactorCode.trim().length !== 6) {
+        setErrors({ twoFactorCode: "Please enter the 6-digit code" });
+        return;
+      }
+    } else {
+      // Validate email and password
+      if (!validateForm()) return;
+    }
     
     setIsLoading(true);
     setErrors({});
     
     try {
-      console.log("Attempting login to:", `${import.meta.env.VITE_API_BASE_URL || 'https://orga-copilot-system-java.onrender.com'}/api/auth/login`);
+      const response = await apiClient.post("/api/auth/login", {
+        email,
+        password,
+        twoFactorCode: requiresTwoFactor ? twoFactorCode.trim() : undefined,
+      });
+      
+      // Check if 2FA is required
+      if (response.data.requiresTwoFactor) {
+        setRequiresTwoFactor(true);
+        toast.info("2FA code sent to your email");
+        setIsLoading(false);
+        return;
+      }
+      
+      // Login successful
+      const token = response.data.token;
+      if (token) {
+        await login(token, {
+          email: response.data.email,
+          role: response.data.role,
+          twoFactorEnabled: response.data.twoFactorEnabled || false,
+        });
+        
+        toast.success("Login successful!");
+        
+        // Navigate to intended destination or chat
+        const from = (location.state as any)?.from || "/chat";
+        navigate(from, { replace: true });
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      const errorMessage = error?.response?.data?.message || "Invalid email or password";
+      
+      if (requiresTwoFactor) {
+        setErrors({ twoFactorCode: errorMessage });
+        // If 2FA code is wrong, allow retry
+        setTwoFactorCode("");
+      } else {
+        setErrors({ password: errorMessage });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleResend2FA = async () => {
+    try {
+      // Resend 2FA code by attempting login again (without 2FA code)
       const response = await apiClient.post("/api/auth/login", {
         email,
         password,
       });
       
-      console.log("Login response:", response.data);
-      
-      // Store token
-      const token = response.data.token;
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("authToken", token); // Also store as authToken for compatibility
+      if (response.data.requiresTwoFactor) {
+        toast.success("2FA code resent to your email");
       }
-      
-      // Navigate to chat
-      navigate("/chat");
     } catch (error: any) {
-      console.error("Login error:", error);
-      const errorMessage = error?.response?.data?.message || "Invalid email or password";
-      setErrors({ password: errorMessage });
-    } finally {
-      setIsLoading(false);
+      toast.error("Failed to resend code. Please try again.");
     }
   };
 
@@ -70,22 +129,14 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-            <Shield className="h-6 w-6 text-primary" />
-          </div>
+          
           <h1 className="text-2xl font-semibold text-foreground">Welcome to Evo Associate</h1>
           <p className="text-sm text-muted-foreground">
             Your AI-powered enterprise assistant
           </p>
         </div>
 
-        {/* Privacy assurance - prominent */}
-        <div className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-lg bg-primary/5 border border-primary/10">
-          <Lock className="h-4 w-4 text-primary flex-shrink-0" />
-          <p className="text-sm text-foreground/80">
-            Conversations are private and never visible to admins
-          </p>
-        </div>
+       
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -118,54 +169,120 @@ export default function LoginPage() {
             )}
           </div>
 
-          {/* Password */}
-          <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-foreground">
-              Password
-            </label>
-            <div className="relative">
+          {/* Password - hide if 2FA is required */}
+          {!requiresTwoFactor && (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="password" className="text-sm font-medium text-foreground">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                    }}
+                    className={cn(
+                      "w-full px-3.5 py-2.5 pr-10 rounded-lg border bg-chat-input-bg text-sm outline-none transition-all",
+                      errors.password
+                        ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20"
+                        : "border-chat-input-border focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20"
+                    )}
+                    placeholder="Enter your password"
+                    disabled={isLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="text-xs text-destructive flex items-center gap-1">
+                    {errors.password}
+                  </p>
+                )}
+              </div>
+
+              {/* Forgot Password */}
+              <div className="flex justify-end">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-primary hover:text-primary/80 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </>
+          )}
+
+          {/* 2FA Code Input */}
+          {requiresTwoFactor && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Mail className="h-4 w-4 text-primary" />
+                <label htmlFor="twoFactorCode" className="text-sm font-medium text-foreground">
+                  Two-Factor Authentication Code
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Enter the 6-digit code sent to your email
+              </p>
               <input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
+                id="twoFactorCode"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={twoFactorCode}
                 onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setTwoFactorCode(value);
+                  if (errors.twoFactorCode) setErrors((prev) => ({ ...prev, twoFactorCode: undefined }));
                 }}
                 className={cn(
-                  "w-full px-3.5 py-2.5 pr-10 rounded-lg border bg-chat-input-bg text-sm outline-none transition-all",
-                  errors.password
+                  "w-full px-3.5 py-2.5 rounded-lg border bg-chat-input-bg text-sm outline-none transition-all text-center text-lg tracking-widest font-mono",
+                  errors.twoFactorCode
                     ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20"
                     : "border-chat-input-border focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20"
                 )}
-                placeholder="Enter your password"
+                placeholder="000000"
                 disabled={isLoading}
+                autoFocus
               />
+              {errors.twoFactorCode && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  {errors.twoFactorCode}
+                </p>
+              )}
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
-                tabIndex={-1}
+                onClick={handleResend2FA}
+                className="text-sm text-primary hover:text-primary/80 transition-colors w-full text-center"
+                disabled={isLoading}
               >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                Resend code
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRequiresTwoFactor(false);
+                  setTwoFactorCode("");
+                  setErrors({});
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors w-full text-center"
+                disabled={isLoading}
+              >
+                Back to login
               </button>
             </div>
-            {errors.password && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                {errors.password}
-              </p>
-            )}
-          </div>
-
-          {/* Forgot Password */}
-          {/* <div className="flex justify-end">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              Forgot password?
-            </Link>
-          </div> */}
+          )}
 
           {/* Submit */}
           <button
@@ -181,10 +298,10 @@ export default function LoginPage() {
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Signing in...
+                {requiresTwoFactor ? "Verifying..." : "Signing in..."}
               </span>
             ) : (
-              "Sign in"
+              requiresTwoFactor ? "Verify Code" : "Sign in"
             )}
           </button>
         </form>
@@ -237,12 +354,12 @@ export default function LoginPage() {
         </a> */}
 
         {/* Sign up link */}
-        {/* <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-muted-foreground">
           Don't have an account?{" "}
           <Link to="/signup" className="text-primary hover:text-primary/80 transition-colors font-medium">
             Sign up
           </Link>
-        </p> */}
+        </p>
       </div>
     </div>
   );

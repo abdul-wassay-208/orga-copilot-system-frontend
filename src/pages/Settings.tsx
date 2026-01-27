@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2, AlertTriangle, CreditCard, ChevronRight, CheckCircle, Shield, Lock } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, AlertTriangle, CreditCard, ChevronRight, CheckCircle, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/hooks/useTheme";
@@ -38,16 +38,21 @@ export default function SettingsPage() {
     percentUsed: 0,
   });
   const [isLoadingUsage, setIsLoadingUsage] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [isToggling2FA, setIsToggling2FA] = useState(false);
+  const [disable2FAPassword, setDisable2FAPassword] = useState("");
+  const [showDisable2FADialog, setShowDisable2FADialog] = useState(false);
 
   // Load user data on mount
   useEffect(() => {
     loadUserData();
     loadUsageData();
     
-    // Refresh usage data every 30 seconds for near real-time updates
+    // Refresh usage data every 5 minutes (reduced from 30 seconds to reduce API calls)
     const interval = setInterval(() => {
       loadUsageData();
-    }, 30000);
+    }, 300000); // 5 minutes = 300000ms
     
     return () => clearInterval(interval);
   }, []);
@@ -61,6 +66,7 @@ export default function SettingsPage() {
       setName(userFullName);
       setOriginalName(userFullName);
       setEmail(userData.email || "");
+      setTwoFactorEnabled(userData.twoFactorEnabled || false);
     } catch (error: any) {
       console.error("Failed to load user data:", error);
       toast.error("Failed to load profile information");
@@ -69,6 +75,49 @@ export default function SettingsPage() {
       setOriginalName("User");
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  const handleToggle2FA = async () => {
+    if (twoFactorEnabled) {
+      // Show password dialog to disable
+      setShowDisable2FADialog(true);
+    } else {
+      // Enable 2FA
+      setIsToggling2FA(true);
+      try {
+        await adminClient.post("/api/auth/2fa/enable");
+        setTwoFactorEnabled(true);
+        toast.success("Two-factor authentication enabled successfully");
+      } catch (error: any) {
+        console.error("Failed to enable 2FA:", error);
+        toast.error(error?.response?.data?.message || "Failed to enable 2FA");
+      } finally {
+        setIsToggling2FA(false);
+      }
+    }
+  };
+  
+  const handleDisable2FA = async () => {
+    if (!disable2FAPassword) {
+      toast.error("Password is required to disable 2FA");
+      return;
+    }
+    
+    setIsToggling2FA(true);
+    try {
+      await adminClient.post("/api/auth/2fa/disable", {
+        password: disable2FAPassword,
+      });
+      setTwoFactorEnabled(false);
+      setShowDisable2FADialog(false);
+      setDisable2FAPassword("");
+      toast.success("Two-factor authentication disabled successfully");
+    } catch (error: any) {
+      console.error("Failed to disable 2FA:", error);
+      toast.error(error?.response?.data?.message || "Failed to disable 2FA. Please check your password.");
+    } finally {
+      setIsToggling2FA(false);
     }
   };
 
@@ -570,6 +619,52 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Two-Factor Authentication Section */}
+        <section className="space-y-4">
+          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+            Security
+          </h2>
+          <div className="p-5 rounded-lg border border-border bg-card space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Lock className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Two-Factor Authentication
+                  </h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {twoFactorEnabled
+                    ? "2FA is enabled. You'll need to enter a code from your email when logging in."
+                    : "Add an extra layer of security to your account. When enabled, you'll receive a code via email during login."}
+                </p>
+              </div>
+              <button
+                onClick={handleToggle2FA}
+                disabled={isToggling2FA}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
+                  twoFactorEnabled
+                    ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                  isToggling2FA && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                {isToggling2FA ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {twoFactorEnabled ? "Disabling..." : "Enabling..."}
+                  </>
+                ) : twoFactorEnabled ? (
+                  "Disable 2FA"
+                ) : (
+                  "Enable 2FA"
+                )}
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Preferences Section */}
         <section className="space-y-4">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -587,17 +682,7 @@ export default function SettingsPage() {
               <ThemeToggle />
             </div>
 
-            {/* Language */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Language</p>
-                <p className="text-sm text-muted-foreground">English (US)</p>
-              </div>
-              <select className="px-3 py-1.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus">
-                <option>English (US)</option>
-                <option>English (UK)</option>
-              </select>
-            </div>
+            
           </div>
         </section>
 
@@ -610,7 +695,7 @@ export default function SettingsPage() {
             {/* Data Storage & Encryption */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
+                <Lock className="h-4 w-4 text-primary" />
                 Data Encryption
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -641,7 +726,7 @@ export default function SettingsPage() {
             {/* Training Usage Policy */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
+                <Lock className="h-4 w-4 text-primary" />
                 AI Training Usage Policy
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -655,16 +740,16 @@ export default function SettingsPage() {
             {/* Data Control */}
             <div className="pt-3 border-t border-border">
               <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                You have full control over your data. You can delete your conversation history at any time, 
-                and all associated messages will be permanently removed from our systems.
+                You have full control over your data. You can delete your conversation history and memories at any time, 
+                and all associated messages and memories will be permanently removed from our systems.
               </p>
               <button
                 onClick={() => setClearDialogOpen(true)}
                 className="text-sm text-destructive hover:text-destructive/80 transition-colors font-medium"
               >
-                Clear my conversations
+                Clear my conversations and memories.
               </button>
-            </div>
+            </div>  
           </div>
         </section>
 
@@ -749,29 +834,31 @@ export default function SettingsPage() {
         </section>
 
         {/* Billing Section (Admin Only) */}
-        <section className="space-y-4">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            Billing
-          </h2>
-          <Link
-            to="/billing"
-            className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-chat-hover transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-md bg-muted">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
+        {(userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && (
+          <section className="space-y-4">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Billing
+            </h2>
+            <Link
+              to="/billing"
+              className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:bg-chat-hover transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-md bg-muted">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Manage Billing</p>
+                  <p className="text-xs text-muted-foreground">Subscription, payment method, and invoices</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Manage Billing</p>
-                <p className="text-xs text-muted-foreground">Subscription, payment method, and invoices</p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            Only visible to organization administrators.
-          </p>
-        </section>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              Only visible to organization administrators.
+            </p>
+          </section>
+        )}
       </main>
 
       {/* Clear Conversations Dialog */}
@@ -822,6 +909,71 @@ export default function SettingsPage() {
                   "Delete all conversations"
                 )}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disable 2FA Dialog */}
+      {showDisable2FADialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-foreground/20 backdrop-blur-sm"
+            onClick={() => {
+              setShowDisable2FADialog(false);
+              setDisable2FAPassword("");
+            }}
+          />
+          <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Disable Two-Factor Authentication
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              For security, please enter your password to disable 2FA.
+            </p>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={disable2FAPassword}
+                    onChange={(e) => setDisable2FAPassword(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20"
+                    placeholder="Enter your password"
+                    disabled={isToggling2FA}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setShowDisable2FADialog(false);
+                    setDisable2FAPassword("");
+                  }}
+                  disabled={isToggling2FA}
+                  className="px-4 py-2 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDisable2FA}
+                  disabled={isToggling2FA || !disable2FAPassword}
+                  className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                >
+                  {isToggling2FA ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Disabling...
+                    </span>
+                  ) : (
+                    "Disable 2FA"
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

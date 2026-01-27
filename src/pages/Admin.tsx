@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   Users,
@@ -13,22 +13,27 @@ import {
   X,
   Loader2,
   ChevronRight,
+  ChevronLeft,
   Info,
+  FileText,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PrivacyDisclaimer, PrivacyBadge } from "@/components/UsageLimitStates";
+import {  PrivacyBadge } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
 type Tab = "users" | "billing";
 
 interface User {
-  id: string;
+  id: string | null;
   name: string;
   email: string;
   role: "admin" | "employee";
-  status: "active" | "invited";
+  status: "active" | "pending";
   messagesUsed?: number;
+  messagesLimit?: number;
+  invitationTokenId?: number;
 }
 
 
@@ -36,6 +41,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("users");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
@@ -45,11 +51,14 @@ export default function AdminPage() {
   const checkAccess = async () => {
     try {
       const response = await adminClient.get("/api/auth/me");
-      const role = response.data?.role;
+      const role = response.data?.role; // Primary role for backward compatibility
+      const roles = response.data?.roles || [role]; // All roles array
       setUserRole(role);
+      setUserRoles(roles);
       
       // Redirect if not tenant admin or super admin
-      if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
+      const hasAdminAccess = roles.includes("TENANT_ADMIN") || roles.includes("SUPER_ADMIN");
+      if (!hasAdminAccess) {
         toast.error("Access denied. Tenant admin access required.");
         navigate("/chat", { replace: true });
         return;
@@ -69,11 +78,6 @@ export default function AdminPage() {
     }
   };
 
-  const tabs = [
-    { id: "users" as Tab, label: "Users", icon: Users },
-    { id: "billing" as Tab, label: "Billing", icon: CreditCard },
-  ];
-
   if (checkingRole) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -82,9 +86,18 @@ export default function AdminPage() {
     );
   }
 
-  if (userRole !== "TENANT_ADMIN" && userRole !== "SUPER_ADMIN") {
+  // Only show billing tab for admins (TENANT_ADMIN or SUPER_ADMIN), not employees
+  const hasAdminAccess = userRoles.includes("TENANT_ADMIN") || userRoles.includes("SUPER_ADMIN");
+  if (!hasAdminAccess) {
     return null; // Will redirect via checkAccess
   }
+
+  const tabs = [
+    { id: "users" as Tab, label: "Users", icon: Users },
+    ...(hasAdminAccess
+      ? [{ id: "billing" as Tab, label: "Billing", icon: CreditCard }]
+      : []),
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -92,30 +105,25 @@ export default function AdminPage() {
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link
-              to="/"
-              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+            <button
+              onClick={() => navigate("/chat")}
+              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors flex-shrink-0"
             >
               <ArrowLeft className="h-5 w-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-foreground">Tenant Admin</h1>
-                <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
-                  Organization
-                </span>
-              </div>
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-foreground">Admin</h1>
               <p className="text-xs text-muted-foreground">Manage your organization</p>
             </div>
           </div>
-          <PrivacyBadge />
+          
         </div>
       </header>
 
       {/* Privacy disclaimer */}
-      <div className="max-w-4xl mx-auto px-4 pt-4">
+      {/* <div className="max-w-4xl mx-auto px-4 pt-4">
         <PrivacyDisclaimer />
-      </div>
+      </div> */}
 
       {/* Tabs */}
       <div className="border-b border-border sticky top-[73px] bg-background z-10">
@@ -143,7 +151,7 @@ export default function AdminPage() {
       {/* Content */}
       <main className="max-w-4xl mx-auto px-4 py-6">
         {activeTab === "users" && <UsersTab />}
-        {activeTab === "billing" && <BillingTab />}
+        {activeTab === "billing" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <BillingTab />}
       </main>
     </div>
   );
@@ -157,24 +165,42 @@ function UsersTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "employee">("employee");
   const [isInviting, setIsInviting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
+  
+  // Get tenant ID from URL query parameter (for super admin viewing specific tenant)
+  const searchParams = new URLSearchParams(window.location.search);
+  const tenantId = searchParams.get("tenant");
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    loadUsers(currentPage);
+  }, [tenantId, currentPage]);
 
-  const loadUsers = async () => {
+  const loadUsers = async (page: number = 0) => {
     try {
       setLoading(true);
-      const response = await adminClient.get("/api/admin/tenant/users");
-      const backendUsers = response.data || [];
+      const url = tenantId 
+        ? `/api/admin/tenant/users?tenantId=${tenantId}&page=${page}&size=${pageSize}`
+        : `/api/admin/tenant/users?page=${page}&size=${pageSize}`;
+      const response = await adminClient.get(url);
+      const responseData = response.data || {};
+      const backendUsers = responseData.content || [];
+      
+      // Set pagination info
+      setTotalPages(responseData.totalPages || 0);
+      setTotalElements(responseData.totalElements || 0);
       
       const transformed: User[] = backendUsers.map((u: any) => ({
-        id: String(u.id),
+        id: u.id ? String(u.id) : null,
         name: u.fullName || u.email.split("@")[0],
         email: u.email,
         role: u.role === "TENANT_ADMIN" ? "admin" : "employee",
-        status: "active" as const, // All users from backend are active
+        status: u.status === "PENDING" ? "pending" : "active",
         messagesUsed: u.messagesUsed || 0,
+        messagesLimit: u.messagesLimit || u.maxMessagesPerMonth || 500, // Use API value, fallback to 500
+        invitationTokenId: u.invitationTokenId,
       }));
       
       setUsers(transformed);
@@ -203,7 +229,7 @@ function UsersTab() {
       setShowInviteDialog(false);
       setInviteEmail("");
       setInviteRole("employee");
-      await loadUsers();
+      await loadUsers(currentPage);
     } catch (error: any) {
       console.error("Failed to invite user:", error);
       toast.error(error?.response?.data?.message || "Failed to invite user");
@@ -212,12 +238,29 @@ function UsersTab() {
     }
   };
 
+  const handleResendInvitation = async (email: string) => {
+    try {
+      await adminClient.post("/api/admin/tenant/users/resend-invitation", {
+        email: email,
+      });
+      toast.success("Invitation resent successfully");
+      await loadUsers(currentPage);
+    } catch (error: any) {
+      console.error("Failed to resend invitation:", error);
+      toast.error(error?.response?.data?.message || "Failed to resend invitation");
+    }
+  };
+
   const handleRemove = async (id: string) => {
+    if (!id) {
+      toast.error("Cannot remove pending invitation. Please wait for it to expire.");
+      return;
+    }
     try {
       await adminClient.delete(`/api/admin/tenant/users/${id}`);
       toast.success("User removed successfully");
       setShowRemoveConfirm(null);
-      await loadUsers();
+      await loadUsers(currentPage);
     } catch (error: any) {
       console.error("Failed to remove user:", error);
       toast.error(error?.response?.data?.message || "Failed to remove user");
@@ -258,19 +301,27 @@ function UsersTab() {
     <div className="space-y-4">
       {/* Active Users Count & Billing Note */}
       <div className="p-4 rounded-xl bg-card border border-border">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">{activeUsersCount}</p>
-              <p className="text-sm text-muted-foreground">Active users</p>
+              <p className="text-sm text-muted-foreground">
+                Active users
+                {totalElements > 0 && (
+                  <span className="ml-1">
+                    ({totalElements} {totalElements === 1 ? 'total' : 'total'}
+                    {totalPages > 1 && ` · Page ${currentPage + 1} of ${totalPages}`})
+                  </span>
+                )}
+              </p>
             </div>
           </div>
           <button
             onClick={() => setShowInviteDialog(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
             Invite user
@@ -283,46 +334,46 @@ function UsersTab() {
       </div>
 
       {/* Users list */}
-      <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+      <div className="border border-border rounded-xl divide-y divide-border overflow-visible">
         {users.map((user) => (
-          <div key={user.id} className="flex items-center justify-between p-4 bg-card hover:bg-chat-hover/50 transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+          <div key={user.id || user.email} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-medium text-muted-foreground">
                   {user.name.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
               {/* Usage bar - numbers only, no content */}
-              {user.messagesUsed !== undefined && (
-                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>{user.messagesUsed}</span>
+              {user.messagesUsed !== undefined && user.messagesLimit !== undefined && (
+                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
+                  <span>{user.messagesUsed} / {user.messagesLimit}</span>
                   <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div 
                       className="h-full rounded-full bg-primary/60" 
-                      style={{ width: `${Math.min((user.messagesUsed / 500) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
               )}
               <span
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-full font-medium",
+                  "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
                   user.status === "active"
                     ? "bg-green-500/10 text-green-600 dark:text-green-400"
                     : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
                 )}
               >
-                {user.status === "active" ? "Active" : "Invited"}
+                {user.status === "active" ? "Active" : "Pending"}
               </span>
               <span 
                 className={cn(
-                  "text-xs px-2.5 py-1 rounded-full font-medium",
+                  "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
                   user.role === "admin" 
                     ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground"
@@ -330,30 +381,114 @@ function UsersTab() {
               >
                 {user.role === "admin" ? "Admin" : "Employee"}
               </span>
-              <div className="relative group">
+              <div className="relative group flex-shrink-0">
                 <button className="p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors">
                   <MoreHorizontal className="h-4 w-4" />
                 </button>
-                <div className="absolute right-0 mt-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                  {user.status === "invited" && (
-                    <button className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground">
+                <div className="absolute right-0 bottom-full mb-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  {user.status === "pending" && (
+                    <button 
+                      onClick={() => handleResendInvitation(user.email)}
+                      className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground"
+                    >
                       <RefreshCw className="h-3.5 w-3.5" />
                       Resend invite
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowRemoveConfirm(user.id)}
-                    className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Remove user
-                  </button>
+                  {user.id && (
+                    <button
+                      onClick={() => setShowRemoveConfirm(user.id!)}
+                      className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove user
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center pt-4">
+          <nav className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                if (currentPage > 0) {
+                  setCurrentPage(currentPage - 1);
+                }
+              }}
+              disabled={currentPage === 0}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                currentPage === 0
+                  ? "pointer-events-none opacity-50"
+                  : "hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              <span>Previous</span>
+            </button>
+            
+            {/* Page numbers */}
+            {Array.from({ length: totalPages }, (_, i) => {
+              // Show first page, last page, current page, and pages around current
+              const showPage = 
+                i === 0 || 
+                i === totalPages - 1 || 
+                (i >= currentPage - 1 && i <= currentPage + 1);
+              
+              if (!showPage) {
+                // Show ellipsis
+                if (i === currentPage - 2 || i === currentPage + 2) {
+                  return (
+                    <span key={i} className="flex h-10 w-10 items-center justify-center">
+                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+                    </span>
+                  );
+                }
+                return null;
+              }
+              
+              return (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i)}
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-md h-10 w-10 text-sm font-medium transition-colors",
+                    i === currentPage
+                      ? "border border-input bg-background"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  {i + 1}
+                </button>
+              );
+            })}
+            
+            <button
+              onClick={() => {
+                if (currentPage < totalPages - 1) {
+                  setCurrentPage(currentPage + 1);
+                }
+              }}
+              disabled={currentPage >= totalPages - 1}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                currentPage >= totalPages - 1
+                  ? "pointer-events-none opacity-50"
+                  : "hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <span>Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </nav>
+        </div>
+      )}
 
       {/* Invite Dialog */}
       {showInviteDialog && (
@@ -470,10 +605,12 @@ function UsersTab() {
 
 
 function BillingTab() {
+  const [searchParams] = useSearchParams();
   const [subscription, setSubscription] = useState({
     organizationName: "",
-    plan: "BASIC",
+    plan: "FREE",
     pricePerUser: 12,
+    planPrice: 0, // Fixed price for non-per-user plans
     activeUsers: 0,
     status: "active" as "active" | "trial" | "past_due" | "grace",
     renewalDate: new Date(),
@@ -485,36 +622,97 @@ function BillingTab() {
     },
   });
   const [loading, setLoading] = useState(true);
+  const loadingRef = useRef(false);
 
+  // Handle Stripe checkout redirect first, then load data
   useEffect(() => {
-    loadBillingData();
-  }, []);
+    const sessionId = searchParams.get("session_id");
+    if (sessionId) {
+      // Verify checkout first, then load data
+      verifyCheckoutSession(sessionId);
+    } else if (!loadingRef.current) {
+      // Only load data if no session_id (normal page load)
+      loadBillingData();
+    }
+  }, [searchParams]);
 
-  const loadBillingData = async () => {
+  const verifyCheckoutSession = async (sessionId: string) => {
+    if (loadingRef.current) return; // Prevent duplicate calls
+    
     try {
       setLoading(true);
-      const [metricsResponse, meResponse] = await Promise.allSettled([
+      const response = await adminClient.post("/api/subscription/verify-checkout", {
+        sessionId: sessionId,
+      });
+      if (response.data.success) {
+        toast.success("Payment successful! Your subscription is now active.");
+      }
+    } catch (error: any) {
+      console.error("Failed to verify checkout:", error);
+      // Still try to reload in case webhook already processed it
+      toast.success("Payment successful! Verifying subscription...");
+    }
+    
+    // Always reload billing data after verification attempt
+    // Reset loadingRef to allow loadBillingData to run
+    loadingRef.current = false;
+    await loadBillingData();
+  };
+
+  const loadBillingData = async () => {
+    if (loadingRef.current) return; // Prevent duplicate calls
+    loadingRef.current = true;
+    
+    try {
+      setLoading(true);
+      const [statusResponse, metricsResponse, meResponse] = await Promise.allSettled([
+        adminClient.get("/api/subscription/status"),
         adminClient.get("/api/admin/tenant/usage/metrics"),
         adminClient.get("/api/auth/me"),
       ]);
       
+      const status = statusResponse.status === 'fulfilled' ? statusResponse.value.data : null;
       const metrics = metricsResponse.status === 'fulfilled' ? metricsResponse.value.data : {};
       const me = meResponse.status === 'fulfilled' ? meResponse.value.data : {};
       
-      setSubscription({
-        organizationName: me.tenantName || "Organization",
-        plan: metrics.subscriptionPlan || "BASIC",
-        pricePerUser: 12, // Default pricing
-        activeUsers: metrics.currentUsers || 0,
-        status: "active",
-        renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-        graceDaysRemaining: 0,
-        coupon: null,
-        usage: {
-          current: metrics.messagesThisMonth || 0,
-          limit: metrics.maxMessagesPerMonth || 0,
-        },
-      });
+      if (status && status.hasSubscription) {
+        const plan = status.plan || {};
+        const subscriptionStatus = status.status?.toLowerCase() || "active";
+        // For FREE plan, show as "active" with monthly billing periods
+        const isFreePlan = subscriptionStatus === "free" || plan.name === "FREE";
+        setSubscription({
+          organizationName: me.tenantName || status.organizationName || "Organization",
+          plan: plan.displayName || plan.name || "Free Plan",
+          pricePerUser: plan.isPerUser ? plan.price || 0 : 0,
+          planPrice: plan.isPerUser ? 0 : (plan.price || 0), // Fixed price for non-per-user plans
+          activeUsers: metrics.currentUsers || 0,
+          status: isFreePlan ? "active" : subscriptionStatus,
+          renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          graceDaysRemaining: 0,
+          coupon: null,
+          usage: {
+            current: metrics.messagesThisMonth || 0,
+            limit: plan.maxMessagesPerMonth || metrics.maxMessagesPerMonth || 0,
+          },
+        });
+      } else {
+        // No subscription - default to FREE
+        setSubscription({
+          organizationName: me.tenantName || "Organization",
+          plan: "Free Plan",
+          pricePerUser: 0,
+          planPrice: 0,
+          activeUsers: metrics.currentUsers || 0,
+          status: "active",
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Monthly billing period for free plan
+          graceDaysRemaining: 0,
+          coupon: null,
+          usage: {
+            current: metrics.messagesThisMonth || 0,
+            limit: metrics.maxMessagesPerMonth || 500,
+          },
+        });
+      }
     } catch (error: any) {
       console.error("Failed to load billing data:", error);
       // Don't show error toast if it's just a 403 (user might not have admin access)
@@ -523,10 +721,13 @@ function BillingTab() {
       }
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
-  const monthlyEstimate = subscription.pricePerUser * subscription.activeUsers;
+  const monthlyEstimate = subscription.pricePerUser > 0 
+    ? subscription.pricePerUser * subscription.activeUsers 
+    : subscription.planPrice; // Use fixed plan price if not per-user
   const usagePercent = subscription.usage.limit > 0 
     ? (subscription.usage.current / subscription.usage.limit) * 100 
     : 0;
@@ -572,11 +773,27 @@ function BillingTab() {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
-          <div>
-            <p className="text-xs text-muted-foreground">Price per user</p>
-            <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.pricePerUser}</p>
-            <p className="text-xs text-muted-foreground">/month</p>
-          </div>
+          {subscription.pricePerUser > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Price per user</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.pricePerUser}</p>
+              <p className="text-xs text-muted-foreground">/month</p>
+            </div>
+          )}
+          {subscription.pricePerUser === 0 && subscription.planPrice === 0 && subscription.plan.toLowerCase().includes("free") && (
+            <div>
+              <p className="text-xs text-muted-foreground">Plan type</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">Free</p>
+              <p className="text-xs text-muted-foreground">Plan</p>
+            </div>
+          )}
+          {subscription.pricePerUser === 0 && subscription.planPrice > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground">Plan price</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.planPrice}</p>
+              <p className="text-xs text-muted-foreground">/month</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-muted-foreground">Active users</p>
             <p className="text-lg font-semibold text-foreground mt-0.5">{subscription.activeUsers}</p>
@@ -662,6 +879,170 @@ function BillingTab() {
         </div>
         <ChevronRight className="h-5 w-5 text-muted-foreground" />
       </Link>
+    </div>
+  );
+}
+
+function KnowledgeBaseTab() {
+  const [files, setFiles] = useState<Array<{ id: number; fileName: string; uploadedAt: string; updatedAt: string }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [fileInput, setFileInput] = useState<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    loadFiles();
+  }, []);
+
+  const loadFiles = async () => {
+    try {
+      setLoading(true);
+      const response = await adminClient.get("/api/admin/tenant/knowledge-base");
+      setFiles(response.data || []);
+    } catch (error: any) {
+      console.error("Failed to load KB files:", error);
+      toast.error("Failed to load knowledge base files");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileSelect = () => {
+    fileInput?.click();
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Allow text files and Word documents
+    const allowedExtensions = ['.txt', '.md', '.doc', '.docx'];
+    const allowedMimeTypes = ['text/', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    
+    const hasValidExtension = allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    const hasValidMimeType = allowedMimeTypes.some(mime => file.type.startsWith(mime));
+    
+    if (!hasValidExtension && !hasValidMimeType) {
+      toast.error("Please upload a text file (.txt, .md) or Word document (.doc, .docx)");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      await adminClient.post("/api/admin/tenant/knowledge-base", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast.success("Knowledge base file uploaded successfully");
+      await loadFiles();
+      // Reset file input
+      if (fileInput) {
+        fileInput.value = "";
+      }
+    } catch (error: any) {
+      console.error("Failed to upload file:", error);
+      toast.error(error?.response?.data?.message || "Failed to upload file");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDelete = async (fileId: number) => {
+    if (!confirm("Are you sure you want to delete this file?")) return;
+
+    try {
+      await adminClient.delete(`/api/admin/tenant/knowledge-base/${fileId}`);
+      toast.success("File deleted successfully");
+      await loadFiles();
+    } catch (error: any) {
+      console.error("Failed to delete file:", error);
+      toast.error(error?.response?.data?.message || "Failed to delete file");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+        <p className="text-sm text-muted-foreground mt-2">Loading knowledge base files...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Privacy note */}
+      <div className="flex items-start gap-2.5 p-4 rounded-xl bg-primary/5 border border-primary/10">
+        <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+        <p className="text-sm text-foreground/80">
+          Upload text files to build your knowledge base. The AI will only use content from these files to answer questions. 
+          Employees you invite will have access to your knowledge base.
+        </p>
+      </div>
+
+      {/* Upload section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium text-foreground">Knowledge Base Files</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Upload text files (.txt, .md) or Word documents (.doc, .docx) to enhance AI responses
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={(el) => setFileInput(el)}
+            onChange={handleFileUpload}
+            accept=".txt,.md,.doc,.docx,text/*,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+          />
+          <button
+            onClick={handleFileSelect}
+            disabled={isUploading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            Upload File
+          </button>
+        </div>
+      </div>
+
+      {/* Files list */}
+      {files.length === 0 ? (
+        <div className="p-8 rounded-xl border border-dashed border-border text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">No knowledge base files uploaded</p>
+          <p className="text-xs text-muted-foreground mt-1">Upload a text file to get started</p>
+        </div>
+      ) : (
+        <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
+          {files.map((file) => (
+            <div key={file.id} className="flex items-center justify-between p-4 bg-card hover:bg-chat-hover/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{file.fileName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Updated {new Date(file.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDelete(file.id)}
+                className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,13 +3,16 @@ import { ChatSidebar } from "./ChatSidebar";
 import { ChatMessage, TypingIndicator } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { EmptyState } from "./EmptyState";
+import { ShareConversationModal } from "./ShareConversationModal";
+import { DeleteChatModal } from "./DeleteChatModal";
 import { Conversation, Message } from "@/types/chat";
-import { Menu, Lock, Download, AlertTriangle, X } from "lucide-react";
+import { Menu, Lock, Download, AlertTriangle, X, Share2, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { chatClient, adminClient } from "@/lib/api-client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -28,13 +31,21 @@ export function ChatLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [usageData, setUsageData] = useState<{
     messagesUsed: number;
     messagesLimit: number;
     percentUsed: number;
   } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const usageDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
@@ -48,16 +59,8 @@ export function ChatLayout() {
     scrollToBottom();
   }, [activeConversation?.messages, scrollToBottom]);
 
-  // Check authentication and load data on mount
+  // Load data on mount (auth is handled by ProtectedRoute)
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
-    if (!token) {
-      // Redirect to login if no token
-      window.location.href = "/login";
-      return;
-    }
-
     loadConversations();
     loadUserRole();
     loadUsageData();
@@ -91,9 +94,11 @@ export function ChatLayout() {
   const loadUserRole = async () => {
     try {
       const response = await adminClient.get("/api/auth/me");
-      const role = response.data?.role;
+      const role = response.data?.role; // Primary role for backward compatibility
+      const roles = response.data?.roles || [role]; // All roles array
       if (role) {
         setUserRole(role);
+        setUserRoles(roles);
       }
     } catch (error: any) {
       console.error("Failed to load user role:", error);
@@ -155,6 +160,11 @@ export function ChatLayout() {
     }
   };
 
+  /**
+   * Loads a conversation from the backend and updates state.
+   * Messages are loaded as-is from backend - filtering for duplicates is handled
+   * in edit/delete operations to maintain data integrity.
+   */
   const loadConversation = async (id: string) => {
     try {
       const response = await chatClient.get(`/chat/conversations/${id}`);
@@ -175,7 +185,7 @@ export function ChatLayout() {
             ? {
                 ...c,
                 title: conv.title,
-                messages,
+                messages, // Load messages as-is - filtering handled in edit operations
                 updatedAt: new Date(conv.updatedAt),
               }
             : c
@@ -217,21 +227,25 @@ export function ChatLayout() {
     }
   };
 
-  const handleDeleteConversation = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this conversation?")) {
-      return;
-    }
+  const handleDeleteConversation = (id: string) => {
+    setDeleteConversationId(id);
+  };
+
+  const confirmDeleteConversation = async () => {
+    if (!deleteConversationId) return;
 
     try {
-      await chatClient.delete(`/chat/conversations/${id}`);
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeConversationId === id) {
+      await chatClient.delete(`/chat/conversations/${deleteConversationId}`);
+      setConversations((prev) => prev.filter((c) => c.id !== deleteConversationId));
+      if (activeConversationId === deleteConversationId) {
         setActiveConversationId(null);
       }
       toast.success("Conversation deleted");
+      setDeleteConversationId(null);
     } catch (error: any) {
       console.error("Failed to delete conversation:", error);
       toast.error("Failed to delete conversation");
+      setDeleteConversationId(null);
     }
   };
 
@@ -257,6 +271,249 @@ export function ChatLayout() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("Conversation exported");
+  };
+
+  const handleLogout = () => {
+    // Use the logout function from AuthContext to prevent duplicate calls
+    logout();
+  };
+
+  const handleStartEdit = (messageId: string) => {
+    const message = activeConversation?.messages.find((m) => m.id === messageId);
+    if (message) {
+      setEditingMessageId(messageId);
+      setEditText(message.content);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditText("");
+  };
+
+  /**
+   * Handles editing a user message with proper message-response pairing.
+   * 
+   * Flow:
+   * 1. Update user message in backend
+   * 2. Identify and remove the assistant response linked to this user message
+   * 3. Regenerate assistant response via /chat/ask
+   * 4. Clean up duplicate user message created by /chat/ask
+   * 5. Ensure UI state reflects only updated message + new response
+   */
+  const handleSaveEdit = async (messageId: string, newContent: string) => {
+    if (!activeConversation) return;
+    
+    // Validate message ID - only allow editing messages saved to backend (numeric IDs)
+    const numericId = Number(messageId);
+    if (isNaN(numericId) || !Number.isInteger(numericId) || numericId <= 0) {
+      toast.error("Cannot edit message that hasn't been saved to the server yet");
+      return;
+    }
+    
+    try {
+      // Step 1: Update the user message in the backend
+      const response = await chatClient.put(`/chat/messages/${numericId}`, {
+        content: newContent,
+      });
+
+      // Find the index of the edited message in current state
+      const messageIndex = activeConversation.messages.findIndex(
+        (m) => m.id === messageId
+      );
+      if (messageIndex === -1) {
+        toast.error("Message not found in conversation");
+        return;
+      }
+
+      // Step 2: Identify the assistant response linked to this user message
+      // The assistant response is the FIRST assistant message that appears AFTER this user message
+      const linkedAssistantMessage = activeConversation.messages.find(
+        (m, idx) => idx > messageIndex && m.role === "assistant"
+      );
+
+      // Step 3: Remove the linked assistant response from backend and state
+      // This ensures no duplicate assistant responses exist
+      // Store the ID to filter it out during reload if deletion fails
+      let deletedAssistantId: string | null = null;
+      if (linkedAssistantMessage && linkedAssistantMessage.id) {
+        const assistantNumericId = Number(linkedAssistantMessage.id);
+        if (!isNaN(assistantNumericId) && Number.isInteger(assistantNumericId) && assistantNumericId > 0) {
+          try {
+            // Delete from backend - WAIT for completion to ensure it's gone
+            await chatClient.delete(`/chat/messages/${assistantNumericId}`);
+            deletedAssistantId = linkedAssistantMessage.id;
+            
+            // Remove from local state immediately using immutable update
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === activeConversationId
+                  ? {
+                      ...c,
+                      // Filter out the old assistant response
+                      messages: c.messages.filter((m) => m.id !== linkedAssistantMessage.id),
+                      updatedAt: new Date(),
+                    }
+                  : c
+              )
+            );
+          } catch (deleteErr: any) {
+            console.error("Failed to delete old assistant response:", deleteErr);
+            const errorMsg = deleteErr?.response?.data?.message || deleteErr?.message || "Failed to delete old response";
+            console.error("Delete error details:", {
+              status: deleteErr?.response?.status,
+              data: deleteErr?.response?.data,
+              message: errorMsg
+            });
+            
+            // If deletion fails, still continue with edit but show warning
+            // The old response will be filtered out during reload
+            toast.warning("Could not delete old response, but continuing with edit...");
+            // Don't return - continue with the edit process
+            // The old response will be handled during reload
+          }
+        }
+      }
+
+      // Step 4: Update user message in local state (immutable update)
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConversationId
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === messageId
+                    ? { ...m, content: response.data.content }
+                    : m
+                ),
+                updatedAt: new Date(),
+              }
+            : c
+        )
+      );
+
+      setEditingMessageId(null);
+      setEditText("");
+
+      // Step 5: Regenerate assistant response
+      // Note: /chat/ask will create a duplicate user message in backend, which we'll clean up
+      setIsStreaming(true);
+      try {
+        const chatbotResponse = await chatClient.post("/chat/ask", {
+          message: newContent,
+          conversationId: activeConversationId ? Number(activeConversationId) : null,
+        });
+
+        const replyText = chatbotResponse.data?.reply || "No response received.";
+        const fullText = typeof replyText === "string" ? replyText : String(replyText);
+
+        // Step 6: Reload conversation to sync with backend and get new assistant response
+        if (activeConversationId) {
+          await loadConversation(activeConversationId);
+          
+          // Step 7: Clean up any remaining issues after reload
+          setConversations((prev) => {
+            const updatedConv = prev.find((c) => c.id === activeConversationId);
+            if (!updatedConv) return prev;
+            
+            let filteredMessages = [...updatedConv.messages];
+            
+            // Filter out the deleted assistant response if it somehow came back
+            if (deletedAssistantId) {
+              filteredMessages = filteredMessages.filter((m) => m.id !== deletedAssistantId);
+            }
+            
+            // Find all user messages with the edited content
+            const userMessagesWithContent = filteredMessages
+              .map((m, idx) => ({ message: m, index: idx }))
+              .filter(({ message }) => message.role === "user" && message.content === newContent);
+            
+            // If duplicates exist, remove the most recent one (created by /chat/ask)
+            // Keep the original (updated) message which appears first
+            if (userMessagesWithContent.length > 1) {
+              // Sort by index descending to get the most recent duplicate
+              userMessagesWithContent.sort((a, b) => b.index - a.index);
+              const duplicateMessage = userMessagesWithContent[0].message; // Most recent
+              const duplicateNumericId = Number(duplicateMessage.id);
+              
+              if (!isNaN(duplicateNumericId) && Number.isInteger(duplicateNumericId) && duplicateNumericId > 0) {
+                // Delete duplicate from backend (async, don't block)
+                chatClient.delete(`/chat/messages/${duplicateNumericId}`).catch((err) => {
+                  console.error("Failed to delete duplicate user message:", err);
+                });
+                
+                // Remove duplicate from filtered messages
+                filteredMessages = filteredMessages.filter((m) => m.id !== duplicateMessage.id);
+              }
+            }
+            
+            // Return updated state with all filters applied
+            return prev.map((c) =>
+              c.id === activeConversationId
+                ? {
+                    ...c,
+                    messages: filteredMessages,
+                  }
+                : c
+            );
+          });
+        }
+
+        // Refresh usage data (debounced)
+        loadUsageData();
+        scrollToBottom();
+        toast.success("Message updated and response regenerated");
+      } catch (chatbotError: any) {
+        console.error("Error getting chatbot response:", chatbotError);
+        toast.error(
+          chatbotError?.response?.data?.message ||
+            "Message updated, but failed to regenerate response"
+        );
+      } finally {
+        setIsStreaming(false);
+      }
+    } catch (error: any) {
+      console.error("Failed to update message:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to update message"
+      );
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    // Check if messageId is numeric (from backend) or string (local)
+    // Only allow deleting messages that have been saved to backend (numeric IDs)
+    const numericId = Number(messageId);
+    if (isNaN(numericId) || !Number.isInteger(numericId) || numericId <= 0) {
+      toast.error("Cannot delete message that hasn't been saved to the server yet");
+      return;
+    }
+    
+    try {
+      await chatClient.delete(`/chat/messages/${numericId}`);
+
+      // Remove message from local state immediately
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConversationId
+            ? {
+                ...c,
+                messages: c.messages.filter((m) => m.id !== messageId),
+                updatedAt: new Date(),
+              }
+            : c
+        )
+      );
+
+      // Reload conversations to update message counts
+      await loadConversations(true);
+      toast.success("Message deleted");
+    } catch (error: any) {
+      console.error("Failed to delete message:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to delete message"
+      );
+    }
   };
 
   const handleSendMessage = async (content: string) => {
@@ -363,6 +620,40 @@ export function ChatLayout() {
       
       // Refresh usage data after sending message
       loadUsageData();
+      
+      // IMPORTANT: Reload conversation IMMEDIATELY after getting response to get numeric IDs from backend
+      // This ensures edit/delete buttons appear on newly sent messages
+      // Do this in parallel with typing effect
+      (async () => {
+        try {
+          const convResponse = await chatClient.get(`/chat/conversations/${conversationId}`);
+          const updatedConv = convResponse.data;
+          
+          // Transform backend messages to frontend format (with numeric IDs from backend)
+          const backendMessages: Message[] = (updatedConv.messages || []).map((m: any) => ({
+            id: String(m.id), // Convert numeric ID to string for consistency
+            role: m.role === "USER" ? "user" : "assistant",
+            content: m.content,
+            timestamp: new Date(m.createdAt),
+          }));
+          
+          // Update the conversation with backend data (this updates message IDs to numeric ones)
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === conversationId
+                ? {
+                    ...c,
+                    title: updatedConv.title || c.title,
+                    messages: backendMessages, // Replace with messages from backend (have numeric IDs)
+                    updatedAt: new Date(updatedConv.updatedAt),
+                  }
+                : c
+            )
+          );
+        } catch (error) {
+          console.error("Failed to update conversation:", error);
+        }
+      })();
 
       // Start typing effect - show response word by word for better UX
       const fullText = replyText;
@@ -475,27 +766,36 @@ export function ChatLayout() {
         conversationId = newId; // Update local variable
       }
 
-      // Reload the conversation from backend to get the updated title
-      // This ensures the title matches what's stored in the database
+      // Reload the conversation from backend to get the updated title and message IDs
+      // This ensures the title matches what's stored in the database and messages have correct numeric IDs
       try {
         const convResponse = await chatClient.get(`/chat/conversations/${conversationId}`);
         const updatedConv = convResponse.data;
         
-        // Update the conversation title from backend
+        // Transform backend messages to frontend format (with numeric IDs from backend)
+        const backendMessages: Message[] = (updatedConv.messages || []).map((m: any) => ({
+          id: String(m.id), // Convert numeric ID to string for consistency
+          role: m.role === "USER" ? "user" : "assistant",
+          content: m.content,
+          timestamp: new Date(m.createdAt),
+        }));
+        
+        // Update the conversation with backend data (this updates message IDs to numeric ones)
         setConversations((prev) =>
           prev.map((c) =>
             c.id === conversationId
               ? {
                   ...c,
                   title: updatedConv.title || c.title,
+                  messages: backendMessages, // Replace with messages from backend (have numeric IDs)
                   updatedAt: new Date(updatedConv.updatedAt),
                 }
               : c
           )
         );
       } catch (error) {
-        console.error("Failed to update conversation title:", error);
-        // Don't fail the whole operation if title update fails
+        console.error("Failed to update conversation:", error);
+        // Don't fail the whole operation if update fails
       }
     } catch (error: any) {
       console.error("Failed to send message:", error);
@@ -504,7 +804,7 @@ export function ChatLayout() {
       if (error?.response?.status === 429) {
         const errorMessage = error?.response?.data?.message || "Monthly message limit reached";
         toast.error(errorMessage);
-        // Refresh usage data to update UI
+        // Refresh usage data to update UI (debounced)
         loadUsageData();
       } else {
         toast.error(error?.response?.data?.message || error?.response?.data?.error || "Failed to send message");
@@ -542,7 +842,7 @@ export function ChatLayout() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-background">
+    <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileMenuOpen(true)}
@@ -563,7 +863,7 @@ export function ChatLayout() {
       {/* Sidebar */}
       <div
         className={cn(
-          "fixed md:relative z-50 h-full transition-transform duration-200",
+          "fixed md:relative z-50 transition-transform duration-200 h-screen md:h-full",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
@@ -576,8 +876,8 @@ export function ChatLayout() {
           onRenameConversation={handleRenameConversation}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          isTenantAdmin={userRole === "TENANT_ADMIN"}
-          isSuperAdmin={userRole === "SUPER_ADMIN"}
+          isTenantAdmin={userRoles.includes("TENANT_ADMIN")}
+          isSuperAdmin={userRoles.includes("SUPER_ADMIN")}
         />
       </div>
 
@@ -597,6 +897,13 @@ export function ChatLayout() {
                 <span className="text-xs text-primary font-medium">Private</span>
               </div>
               <button
+                onClick={() => setShowShareModal(true)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                aria-label="Share conversation"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+              <button
                 onClick={handleExportConversation}
                 className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
                 aria-label="Export conversation"
@@ -604,6 +911,14 @@ export function ChatLayout() {
                 <Download className="h-4 w-4" />
               </button>
               <ThemeToggle />
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                aria-label="Logout"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}
@@ -611,8 +926,16 @@ export function ChatLayout() {
         {!activeConversation ? (
           <>
             {/* Top bar for empty state */}
-            <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm">
+            <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm gap-2">
               <ThemeToggle />
+              <button
+                onClick={handleLogout}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                aria-label="Logout"
+                title="Logout"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
             <EmptyState 
               onSelectPrompt={handleSendMessage} 
@@ -682,39 +1005,92 @@ export function ChatLayout() {
               </div>
             )}
             
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto scrollbar-thin">
-              {activeConversation.messages
-                .filter((message) => {
-                  // Don't render empty placeholder messages - we'll show TypingIndicator instead
-                  return !(message.role === "assistant" && message.content === "" && isStreaming);
-                })
-                .map((message) => (
-                  <ChatMessage key={message.id} message={message} />
-                ))}
-              {/* Show typing indicator when streaming and we have an empty placeholder message */}
-              {isStreaming && 
-               activeConversation.messages.length > 0 && 
-               activeConversation.messages[activeConversation.messages.length - 1]?.role === "assistant" &&
-               activeConversation.messages[activeConversation.messages.length - 1]?.content === "" && (
-                <TypingIndicator />
-              )}
-              <div ref={messagesEndRef} className="h-4" />
-            </div>
+            {/* Show EmptyState when conversation has no messages */}
+            {activeConversation.messages.length === 0 ? (
+              <>
+                <EmptyState 
+                  onSelectPrompt={handleSendMessage} 
+                  disabled={usageData?.percentUsed >= 100}
+                />
+                <ChatInput 
+                  onSend={handleSendMessage} 
+                  disabled={isStreaming || (usageData?.percentUsed >= 100)}
+                  placeholder={usageData?.percentUsed >= 100 
+                    ? "Monthly message limit reached. Contact your administrator to upgrade."
+                    : "What's on your mind?"}
+                  showPromptChips={true}
+                  onSelectPrompt={handleSendMessage}
+                />
+              </>
+            ) : (
+              <>
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin">
+                  {activeConversation.messages
+                    .filter((message) => {
+                      // Don't render empty placeholder messages - we'll show TypingIndicator instead
+                      return !(message.role === "assistant" && message.content === "" && isStreaming);
+                    })
+                    .map((message) => (
+                      <ChatMessage
+                        key={message.id}
+                        message={message}
+                        onEdit={handleSaveEdit}
+                        onDelete={handleDeleteMessage}
+                        isEditing={editingMessageId === message.id}
+                        onStartEdit={handleStartEdit}
+                        onCancelEdit={handleCancelEdit}
+                        editText={editText}
+                        onEditTextChange={setEditText}
+                      />
+                    ))}
+                  {/* Show typing indicator when streaming and we have an empty placeholder message */}
+                  {isStreaming && 
+                   activeConversation.messages.length > 0 && 
+                   activeConversation.messages[activeConversation.messages.length - 1]?.role === "assistant" &&
+                   activeConversation.messages[activeConversation.messages.length - 1]?.content === "" && (
+                    <TypingIndicator />
+                  )}
+                  <div ref={messagesEndRef} className="h-4" />
+                </div>
 
-            {/* Input */}
-            <ChatInput 
-              onSend={handleSendMessage} 
-              disabled={isStreaming || (usageData?.percentUsed >= 100)}
-              placeholder={usageData?.percentUsed >= 100 
-                ? "Monthly message limit reached. Contact your administrator to upgrade."
-                : "What's on your mind?"}
-              showPromptChips={activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
-              onSelectPrompt={handleSendMessage}
-            />
+                {/* Input */}
+                <ChatInput 
+                  onSend={handleSendMessage} 
+                  disabled={isStreaming || (usageData?.percentUsed >= 100)}
+                  placeholder={usageData?.percentUsed >= 100 
+                    ? "Monthly message limit reached. Contact your administrator to upgrade."
+                    : "What's on your mind?"}
+                  showPromptChips={activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
+                  onSelectPrompt={handleSendMessage}
+                />
+              </>
+            )}
           </>
         )}
       </div>
+      
+      {/* Share Conversation Modal */}
+      {activeConversation && (
+        <ShareConversationModal
+          conversationId={activeConversation.id}
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
+
+      {/* Delete Chat Modal */}
+      {deleteConversationId && (() => {
+        const conversationToDelete = conversations.find(c => c.id === deleteConversationId);
+        return conversationToDelete ? (
+          <DeleteChatModal
+            isOpen={true}
+            chatTitle={conversationToDelete.title}
+            onClose={() => setDeleteConversationId(null)}
+            onConfirm={confirmDeleteConversation}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

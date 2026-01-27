@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Check, Share2, Download } from "lucide-react";
+import { Copy, Check, Share2, Download, Edit2, Trash2, X } from "lucide-react";
 import { Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -8,9 +8,25 @@ import remarkGfm from "remark-gfm";
 
 interface ChatMessageProps {
   message: Message;
+  onEdit?: (messageId: string, newContent: string) => Promise<void>;
+  onDelete?: (messageId: string) => Promise<void>;
+  isEditing?: boolean;
+  onStartEdit?: (messageId: string) => void;
+  onCancelEdit?: () => void;
+  editText?: string;
+  onEditTextChange?: (text: string) => void;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ 
+  message, 
+  onEdit, 
+  onDelete, 
+  isEditing = false,
+  onStartEdit,
+  onCancelEdit,
+  editText = "",
+  onEditTextChange
+}: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
 
@@ -47,15 +63,42 @@ export function ChatMessage({ message }: ChatMessageProps) {
     toast.success("Message exported");
   };
 
-  const formatTimestamp = (date: Date) => {
-    return new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }).format(date);
+  const isUser = message.role === "user";
+  
+  // Check if message has a numeric ID (saved to backend) or string ID (local only)
+  // Only allow editing/deleting messages that have been saved to backend
+  const messageNumericId = Number(message.id);
+  const isSavedToBackend = !isNaN(messageNumericId) && Number.isInteger(messageNumericId) && messageNumericId > 0;
+
+  const handleSaveEdit = async () => {
+    if (!editText.trim()) {
+      toast.error("Message cannot be empty");
+      return;
+    }
+    if (onEdit) {
+      await onEdit(message.id, editText.trim());
+    }
   };
 
-  const isUser = message.role === "user";
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this message?")) {
+      return;
+    }
+    if (onDelete) {
+      await onDelete(message.id);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === "Escape") {
+      if (onCancelEdit) {
+        onCancelEdit();
+      }
+    }
+  };
 
   return (
     <div
@@ -82,7 +125,20 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
           {/* Content */}
           <div className="flex-1 min-w-0 space-y-2">
-            {isUser ? (
+            {isEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editText}
+                  onChange={(e) => onEditTextChange?.(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-full min-h-[80px] p-3 rounded-lg border border-border bg-background text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  autoFocus
+                />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Press Ctrl+Enter to save, Esc to cancel</span>
+                </div>
+              </div>
+            ) : isUser ? (
               <div className="text-foreground leading-relaxed whitespace-pre-wrap">
                 {message.content}
               </div>
@@ -181,45 +237,85 @@ export function ChatMessage({ message }: ChatMessageProps) {
             <div
               className={cn(
                 "flex items-center gap-1 text-xs transition-all duration-150",
-                showActions ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
+                showActions || isEditing ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
               )}
             >
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Copy message"
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-green-500" />
-                    <span>Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Share message"
-              >
-                <Share2 className="h-3.5 w-3.5" />
-                <span>Share</span>
-              </button>
-              <button
-                onClick={handleExport}
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Export message"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span>Export</span>
-              </button>
-              <span className="ml-2 text-chat-timestamp">
-                {formatTimestamp(message.timestamp)}
-              </span>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleSaveEdit}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-green-600 dark:text-green-400 hover:bg-green-500/10 transition-colors"
+                    aria-label="Save changes"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Save</span>
+                  </button>
+                  <button
+                    onClick={onCancelEdit}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                    aria-label="Cancel"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    <span>Cancel</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {isUser && isSavedToBackend && onStartEdit && (
+                    <button
+                      onClick={() => onStartEdit(message.id)}
+                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                      aria-label="Edit message"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                      <span>Edit</span>
+                    </button>
+                  )}
+                  {isUser && isSavedToBackend && onDelete && (
+                    <button
+                      onClick={handleDelete}
+                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label="Delete message"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleCopy}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                    aria-label="Copy message"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-green-500" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                    aria-label="Share message"
+                  >
+                    <Share2 className="h-3.5 w-3.5" />
+                    <span>Share</span>
+                  </button>
+                  <button
+                    onClick={handleExport}
+                    className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                    aria-label="Export message"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Export</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

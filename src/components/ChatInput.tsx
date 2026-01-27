@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { Send, Sparkles } from "lucide-react";
+import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputProps {
@@ -9,12 +9,6 @@ interface ChatInputProps {
   showPromptChips?: boolean;
   onSelectPrompt?: (prompt: string) => void;
 }
-
-const quickPrompts = [
-  "Help me prepare",
-  "Guide my thinking",
-  "Give me perspective",
-];
 
 export function ChatInput({
   onSend,
@@ -53,22 +47,6 @@ export function ChatInput({
   return (
     <div className="border-t border-chat-divider bg-background sticky bottom-0">
       <div className="chat-width px-4 md:px-6 py-4 space-y-3">
-        {/* Quick prompt chips */}
-        {showPromptChips && !value && (
-          <div className="flex items-center gap-2 flex-wrap animate-fade-in">
-            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-            {quickPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => onSelectPrompt?.(prompt)}
-                className="px-3 py-1.5 rounded-full border border-chat-input-border bg-chat-input-bg text-xs text-muted-foreground hover:text-foreground hover:border-chat-input-focus/50 transition-all"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        )}
-
         {/* Input area */}
         <div
           className={cn(

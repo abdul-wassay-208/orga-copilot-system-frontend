@@ -6,16 +6,16 @@ interface EmptyStateProps {
 }
 
 const examplePrompts = [
-  { text: "Prepare for a difficult conversation", icon: "💬" },
-  { text: "Think through a team decision", icon: "🤔" },
-  { text: "Navigate a challenging situation", icon: "🧭" },
-  { text: "Explore leadership approach", icon: "💡" },
+  { text: "My team keeps running into the same problems no matter what we try.", icon: "💬" },
+  { text: "We have talented people, but something's not clicking as a team.", icon: "🤔" },
+  { text: "How do I step back as a leader without everything falling apart?", icon: "🧭" },
+  { text: "What does a truly healthy team actually look like?", icon: "💡" },
 ];
 
 export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 md:py-12">
-      <div className="max-w-xl w-full text-center space-y-8">
+    <div className="flex-1 flex flex-col items-center justify-start px-4 py-4 md:py-8 lg:py-12 overflow-y-auto min-h-0">
+      <div className="max-w-xl w-full text-center space-y-6 md:space-y-8 py-4 md:py-8">
         {/* Icon */}
         <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center animate-scale-in">
           <MessageCircle className="h-8 w-8 text-primary" />
@@ -32,38 +32,15 @@ export function EmptyState({ onSelectPrompt, disabled = false }: EmptyStateProps
           </p>
         </div>
 
-        {/* Example prompts */}
-        <div className="space-y-4 pt-2 animate-fade-in" style={{ animationDelay: "100ms" }}>
-          <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Start a conversation</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg mx-auto">
-            {examplePrompts.map((prompt, index) => (
-              <button
-                key={index}
-                onClick={() => !disabled && onSelectPrompt(prompt.text)}
-                disabled={disabled}
-                className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-chat-input-border bg-chat-input-bg hover:bg-chat-hover hover:border-chat-input-focus/50 transition-all duration-150 text-left disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-chat-input-bg disabled:hover:border-chat-input-border"
-              >
-                <span className="text-lg">{prompt.icon}</span>
-                <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors">
-                  {prompt.text}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Privacy note */}
-        <div className="pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/50 border border-border">
-            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+        {/* <div className="pt-2 md:pt-4 animate-fade-in" style={{ animationDelay: "200ms" }}>
+          <div className="inline-flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-full bg-muted/50 border border-border">
+            <Lock className="h-3 w-3 md:h-3.5 md:w-3.5 text-muted-foreground flex-shrink-0" />
             <p className="text-xs text-muted-foreground">
               This space is for reflection, not evaluation.
             </p>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

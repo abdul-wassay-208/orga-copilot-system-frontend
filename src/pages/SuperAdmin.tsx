@@ -12,18 +12,26 @@ import {
   Upload,
   Loader2,
   ChevronRight,
-  Shield,
   Users,
   MessageSquare,
   X,
   AlertTriangle,
   Globe,
   Lock,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PrivacyDisclaimer } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 type Tab = "tenants" | "usage" | "knowledge" | "limits";
 
@@ -35,6 +43,13 @@ interface Tenant {
   messagesUsed: number;
   messagesLimit: number;
   plan: string;
+  admin?: {
+    id: string;
+    email: string;
+    fullName: string;
+  } | null;
+  totalEmployees: number;
+  createdAt?: string;
 }
 
 interface GlobalKnowledgeFile {
@@ -49,6 +64,7 @@ export default function SuperAdminPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<Tab>("tenants");
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [checkingRole, setCheckingRole] = useState(true);
 
   useEffect(() => {
@@ -58,11 +74,13 @@ export default function SuperAdminPage() {
   const checkAccess = async () => {
     try {
       const response = await adminClient.get("/api/auth/me");
-      const role = response.data?.role;
+      const role = response.data?.role; // Primary role for backward compatibility
+      const roles = response.data?.roles || [role]; // All roles array
       setUserRole(role);
+      setUserRoles(roles);
       
       // Redirect if not super admin
-      if (role !== "SUPER_ADMIN") {
+      if (!roles.includes("SUPER_ADMIN")) {
         toast.error("Access denied. Super admin access required.");
         navigate("/chat", { replace: true });
         return;
@@ -85,8 +103,6 @@ export default function SuperAdminPage() {
   const tabs = [
     { id: "tenants" as Tab, label: "Tenants", icon: Building2 },
     { id: "usage" as Tab, label: "Usage Overview", icon: BarChart3 },
-    { id: "knowledge" as Tab, label: "Knowledge Base", icon: FileText },
-    { id: "limits" as Tab, label: "Default Limits", icon: Settings },
   ];
 
   if (checkingRole) {
@@ -97,7 +113,7 @@ export default function SuperAdminPage() {
     );
   }
 
-  if (userRole !== "SUPER_ADMIN") {
+  if (!userRoles.includes("SUPER_ADMIN")) {
     return null; // Will redirect via checkAccess
   }
 
@@ -107,33 +123,24 @@ export default function SuperAdminPage() {
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link
-              to="/"
+            <button
+              onClick={() => navigate("/chat")}
               className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
-            </Link>
+            </button>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-foreground">Super Admin</h1>
-                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                  Platform
-                </span>
-              </div>
+              <h1 className="text-lg font-semibold text-foreground">Super Admin</h1>
               <p className="text-xs text-muted-foreground">Manage all organizations</p>
             </div>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/5 border border-primary/10">
-            <Shield className="h-3.5 w-3.5 text-primary" />
-            <span className="text-xs font-medium text-primary">Private by Design</span>
           </div>
         </div>
       </header>
 
       {/* Privacy disclaimer */}
-      <div className="max-w-5xl mx-auto px-4 pt-4">
+      {/* <div className="max-w-5xl mx-auto px-4 pt-4">
         <PrivacyDisclaimer />
-      </div>
+      </div> */}
 
       {/* Tabs */}
       <div className="border-b border-border sticky top-[73px] bg-background z-10">
@@ -174,18 +181,26 @@ function TenantsTab() {
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
-  const [newTenantDomain, setNewTenantDomain] = useState("");
   const [isAdding, setIsAdding] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
 
   useEffect(() => {
-    loadTenants();
-  }, []);
+    loadTenants(currentPage);
+  }, [currentPage]);
 
-  const loadTenants = async () => {
+  const loadTenants = async (page: number = 0) => {
     try {
       setLoading(true);
-      const response = await adminClient.get("/api/admin/super/tenants");
-      const backendTenants = response.data || [];
+      const response = await adminClient.get(`/api/admin/super/tenants?page=${page}&size=${pageSize}`);
+      const responseData = response.data || {};
+      const backendTenants = responseData.content || [];
+      
+      // Set pagination info
+      setTotalPages(responseData.totalPages || 0);
+      setTotalElements(responseData.totalElements || 0);
       
       // Also get metrics to calculate user counts and message usage
       const metricsResponse = await adminClient.get("/api/admin/super/metrics");
@@ -202,9 +217,16 @@ function TenantsTab() {
           name: t.name,
           status,
           usersCount: 0, // Will be calculated separately
-          messagesUsed: 0, // Will be calculated separately
-          messagesLimit: t.maxMessagesPerMonth || 0,
-          plan: t.subscriptionPlan || "BASIC",
+          messagesUsed: t.messagesUsed || 0, // Use API value from backend
+          messagesLimit: t.messagesLimit || t.maxMessagesPerMonth || 0, // Use messagesLimit first, fallback to maxMessagesPerMonth
+          plan: t.subscriptionPlan || "FREE",
+          admin: t.admin ? {
+            id: String(t.admin.id),
+            email: t.admin.email,
+            fullName: t.admin.fullName,
+          } : null,
+          totalEmployees: t.totalEmployees || 0,
+          createdAt: t.createdAt,
         };
       });
       
@@ -218,20 +240,18 @@ function TenantsTab() {
   };
 
   const handleAddTenant = async () => {
-    if (!newTenantName.trim() || !newTenantDomain.trim()) return;
+    if (!newTenantName.trim()) return;
     setIsAdding(true);
     
     try {
       const response = await adminClient.post("/api/admin/super/tenants", {
         name: newTenantName.trim(),
-        domain: newTenantDomain.trim(),
       });
       
       toast.success("Tenant created successfully");
       setShowAddDialog(false);
       setNewTenantName("");
-      setNewTenantDomain("");
-      await loadTenants();
+      await loadTenants(currentPage);
     } catch (error: any) {
       console.error("Failed to create tenant:", error);
       toast.error(error?.response?.data?.message || "Failed to create tenant");
@@ -348,7 +368,10 @@ function TenantsTab() {
 
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{tenants.length} organizations</p>
+        <p className="text-sm text-muted-foreground">
+          {totalElements} {totalElements === 1 ? 'organization' : 'organizations'}
+          {totalPages > 1 && ` (Page ${currentPage + 1} of ${totalPages})`}
+        </p>
         <button
           onClick={() => setShowAddDialog(true)}
           className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
@@ -368,13 +391,25 @@ function TenantsTab() {
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">{tenant.name}</p>
-                <p className="text-xs text-muted-foreground">{tenant.plan} · {tenant.usersCount} users</p>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p>{tenant.plan} · {tenant.totalEmployees} employees</p>
+                  {tenant.admin && (
+                    <p className="text-xs text-muted-foreground">
+                      Admin: {tenant.admin.fullName} ({tenant.admin.email})
+                    </p>
+                  )}
+                  {tenant.createdAt && (
+                    <p className="text-xs text-muted-foreground">
+                      Created: {new Date(tenant.createdAt).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
               {/* Usage bar - numbers only */}
               <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{tenant.messagesUsed.toLocaleString()}</span>
+                <span>{tenant.messagesUsed.toLocaleString()} / {tenant.messagesLimit.toLocaleString()}</span>
                 <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
                   <div
                     className={cn(
@@ -398,6 +433,91 @@ function TenantsTab() {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex justify-center pt-4">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 0) {
+                      setCurrentPage(currentPage - 1);
+                    }
+                  }}
+                  disabled={currentPage === 0}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                  )}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span>Previous</span>
+                </button>
+              </PaginationItem>
+              
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => {
+                // Show first page, last page, current page, and pages around current
+                const showPage = 
+                  i === 0 || 
+                  i === totalPages - 1 || 
+                  (i >= currentPage - 1 && i <= currentPage + 1);
+                
+                if (!showPage) {
+                  // Show ellipsis
+                  if (i === currentPage - 2 || i === currentPage + 2) {
+                    return (
+                      <PaginationItem key={i}>
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    );
+                  }
+                  return null;
+                }
+                
+                return (
+                  <PaginationItem key={i}>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(i);
+                      }}
+                      className={cn(
+                        "inline-flex items-center justify-center rounded-md h-10 w-10 text-sm font-medium transition-colors",
+                        i === currentPage
+                          ? "border border-input bg-background"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      {i + 1}
+                    </button>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages - 1) {
+                      setCurrentPage(currentPage + 1);
+                    }
+                  }}
+                  disabled={currentPage >= totalPages - 1}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
+                  )}
+                >
+                  <span>Next</span>
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Add Tenant Dialog */}
       {showAddDialog && (
@@ -426,18 +546,8 @@ function TenantsTab() {
                   placeholder="Acme Inc"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
                 />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Domain identifier</label>
-                <input
-                  type="text"
-                  value={newTenantDomain}
-                  onChange={(e) => setNewTenantDomain(e.target.value)}
-                  placeholder="acme"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
-                />
                 <p className="text-xs text-muted-foreground">
-                  Users with emails like user@{newTenantDomain || "domain"}.com will be assigned to this organization
+                  Organization names can be duplicated. Each organization is identified by its unique ID.
                 </p>
               </div>
             </div>
@@ -450,7 +560,7 @@ function TenantsTab() {
               </button>
               <button
                 onClick={handleAddTenant}
-                disabled={!newTenantName.trim() || !newTenantDomain.trim() || isAdding}
+                disabled={!newTenantName.trim() || isAdding}
                 className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
@@ -480,17 +590,20 @@ function UsageOverviewTab() {
   const loadUsageData = async () => {
     try {
       setLoading(true);
+      // Fetch all tenants without pagination for usage overview
       const [tenantsResponse, metricsResponse] = await Promise.all([
-        adminClient.get("/api/admin/super/tenants"),
+        adminClient.get("/api/admin/super/tenants?page=0&size=1000"), // Get all tenants
         adminClient.get("/api/admin/super/metrics"),
       ]);
       
-      const tenants = tenantsResponse.data || [];
+      // Handle paginated response - extract content array
+      const responseData = tenantsResponse.data || {};
+      const tenants = responseData.content || [];
       const metrics = metricsResponse.data || {};
       
       // Calculate totals
       const totalMessages = tenants.reduce((acc: number, t: any) => acc + (t.messagesUsed || 0), 0);
-      const totalLimit = tenants.reduce((acc: number, t: any) => acc + (t.maxMessagesPerMonth || 0), 0);
+      const totalLimit = tenants.reduce((acc: number, t: any) => acc + (t.messagesLimit || t.maxMessagesPerMonth || 0), 0);
       
       setUsageData({
         totalMessages,
@@ -504,7 +617,7 @@ function UsageOverviewTab() {
         .map((t: any) => ({
           name: t.name,
           usage: t.messagesUsed || 0,
-          limit: t.maxMessagesPerMonth || 0,
+          limit: t.messagesLimit || t.maxMessagesPerMonth || 0,
         }))
         .sort((a, b) => b.usage - a.usage)
         .slice(0, 10);
@@ -621,7 +734,7 @@ function GlobalKnowledgeTab() {
     <div className="space-y-6">
       {/* Privacy note */}
       <div className="flex items-start gap-2.5 p-4 rounded-xl bg-primary/5 border border-primary/10">
-        <Shield className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+        <Lock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
         <p className="text-sm text-foreground/80">
           Knowledge base content helps guide AI responses but does not override user privacy.
           Admins cannot view conversation content.
