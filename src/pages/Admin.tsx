@@ -677,13 +677,16 @@ function BillingTab() {
       
       if (status && status.hasSubscription) {
         const plan = status.plan || {};
+        const subscriptionStatus = status.status?.toLowerCase() || "active";
+        // For FREE plan, show as "active" with monthly billing periods
+        const isFreePlan = subscriptionStatus === "free" || plan.name === "FREE";
         setSubscription({
           organizationName: me.tenantName || status.organizationName || "Organization",
           plan: plan.displayName || plan.name || "Free Plan",
           pricePerUser: plan.isPerUser ? plan.price || 0 : 0,
           planPrice: plan.isPerUser ? 0 : (plan.price || 0), // Fixed price for non-per-user plans
           activeUsers: metrics.currentUsers || 0,
-          status: status.status?.toLowerCase() || "active",
+          status: isFreePlan ? "active" : subscriptionStatus,
           renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           graceDaysRemaining: 0,
           coupon: null,
@@ -701,7 +704,7 @@ function BillingTab() {
           planPrice: 0,
           activeUsers: metrics.currentUsers || 0,
           status: "active",
-          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Monthly billing period for free plan
           graceDaysRemaining: 0,
           coupon: null,
           usage: {
