@@ -43,18 +43,20 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
       const response = await adminClient.get("/api/subscription/plans");
       const backendPlans = response.data || [];
       
-      const transformed: Plan[] = backendPlans.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        displayName: p.displayName,
-        price: p.price,
-        priceUnit: p.priceUnit,
-        description: p.description,
-        maxMessagesPerMonth: p.maxMessagesPerMonth,
-        maxUsers: p.maxUsers,
-        isPerUser: p.isPerUser,
-        highlighted: p.name === "STANDARD",
-      }));
+      const transformed: Plan[] = backendPlans
+        .filter((p: any) => ["BASIC", "PRO", "ENTERPRISE"].includes(p.name))
+        .map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          displayName: p.displayName,
+          price: p.price,
+          priceUnit: p.priceUnit,
+          description: p.description,
+          maxMessagesPerMonth: p.maxMessagesPerMonth,
+          maxUsers: p.maxUsers,
+          isPerUser: p.isPerUser,
+          highlighted: false,
+        }));
       
       setPlans(transformed);
     } catch (error: any) {
@@ -80,34 +82,29 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
   }
   
   const getFeatures = (plan: Plan): string[] => {
+    if (plan.name === "ENTERPRISE") return [];
     const features: string[] = [];
-    features.push(`${plan.maxMessagesPerMonth.toLocaleString()} messages per ${plan.isPerUser ? "user per" : ""} month`);
-    if (plan.maxUsers) {
+    features.push(`${plan.maxMessagesPerMonth.toLocaleString()} messages per month`);
+    if (plan.maxUsers != null && plan.maxUsers > 0) {
       features.push(`Up to ${plan.maxUsers} users`);
-    } else if (plan.isPerUser) {
-      features.push("Unlimited users");
-      features.push("Per-user billing");
-    } else {
-      features.push("Full conversation history");
-      features.push("Priority support");
     }
-    if (plan.name === "FREE") {
-      features.push("Basic features");
-    } else {
-      features.push("Advanced features");
-      features.push("Cancel anytime");
+    if (plan.name === "PRO") {
+      features.push("Content, videos, training resources");
+      features.push("1 AMA webinar per month");
+      features.push("Team diagnostics");
     }
+    features.push("Cancel anytime");
     return features;
   };
   
   const getBestFor = (plan: Plan): string => {
     switch (plan.name) {
-      case "FREE":
-        return "Trying the product before upgrading";
-      case "STANDARD":
-        return "Individuals who need consistent AI support";
+      case "BASIC":
+        return "Light usage, predictable cost";
+      case "PRO":
+        return "Content, training, AMA, and team diagnostics";
       case "ENTERPRISE":
-        return "Organizations needing private, controlled AI access at scale";
+        return "Contact us for custom AI and consulting";
       default:
         return "";
     }
@@ -124,48 +121,50 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
           <div
             key={plan.name}
             onClick={() => {
-              if (onSelectPlan) {
+              if (onSelectPlan && plan.name !== "ENTERPRISE") {
                 setSelectedPlan(plan.name);
                 onSelectPlan(plan.name);
               }
             }}
             className={cn(
               "relative flex flex-col p-5 rounded-xl border transition-all",
-              onSelectPlan && "cursor-pointer",
-              (selectedPlan === plan.name || plan.highlighted)
+              onSelectPlan && plan.name !== "ENTERPRISE" && "cursor-pointer",
+              selectedPlan === plan.name
                 ? "border-primary bg-primary/5 shadow-sm"
                 : "border-border bg-card hover:border-primary/50"
             )}
           >
-            {plan.highlighted && (
-              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                <span className="px-3 py-1 text-xs font-medium rounded-full bg-primary text-primary-foreground">
-                  Popular
-                </span>
-              </div>
-            )}
-
             <div className="space-y-3 mb-4">
               <h3 className="text-base font-semibold text-foreground">{plan.displayName}</h3>
-              <p className="text-xs text-muted-foreground">{plan.description}</p>
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-foreground">
-                  {plan.price === 0 ? "Free" : `$${plan.price}`}
-                </span>
-                {plan.priceUnit && plan.price > 0 && (
-                  <span className="text-sm text-muted-foreground">/{plan.priceUnit}</span>
-                )}
-              </div>
+              {plan.name === "ENTERPRISE" ? (
+                <p className="text-sm text-muted-foreground">Contact us</p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">{plan.description}</p>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-foreground">
+                      {plan.price === 0 ? "Free" : `$${plan.price}`}
+                    </span>
+                    {plan.priceUnit && plan.price > 0 && (
+                      <span className="text-sm text-muted-foreground">/{plan.priceUnit}</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
 
-            <ul className="space-y-2 flex-1 mb-4">
-              {getFeatures(plan).map((feature, index) => (
-                <li key={index} className="flex items-start gap-2">
-                  <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span className="text-xs text-foreground">{feature}</span>
-                </li>
-              ))}
-            </ul>
+            {plan.name === "ENTERPRISE" ? (
+              <div className="flex-1 mb-4" />
+            ) : (
+              <ul className="space-y-2 flex-1 mb-4">
+                {getFeatures(plan).map((feature, index) => (
+                  <li key={index} className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-xs text-foreground">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="pt-3 border-t border-border">
               <p className="text-xs text-muted-foreground">

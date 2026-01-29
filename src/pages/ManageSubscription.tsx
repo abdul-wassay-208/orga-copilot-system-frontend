@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
+import { CouponCheckoutPrompt } from "@/components/CouponCheckoutPrompt";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
@@ -15,10 +16,18 @@ interface IndividualSubscription {
   status: "active" | "trial" | "past_due" | "canceled";
   renewalDate: Date;
   coupon: string | null;
+  couponPlan?: boolean; // true when plan is from coupon (1 month from apply, then fall back to Free)
   usage: {
     current: number;
     limit: number;
   };
+}
+
+interface ProratedRecord {
+  addedAt: string;
+  newQuantity: number;
+  proratedAmountCents: number;
+  cycleAmountCents: number;
 }
 
 interface OrganizationSubscription {
@@ -28,10 +37,15 @@ interface OrganizationSubscription {
   pricePerUser: number;
   planPrice: number; // Fixed price for non-per-user plans
   activeUsers: number;
+  totalUsers?: number; // For per-user billing display
+  totalMonthlyCostCents?: number; // Total monthly cost in cents (per-user plans)
+  upcomingInvoiceAmountCents?: number; // Next invoice amount in cents
+  proratedBillingHistory?: ProratedRecord[];
   billingCycle: string;
   status: "active" | "trial" | "past_due" | "canceled";
   renewalDate: Date;
   coupon: string | null;
+  couponPlan?: boolean;
   usage: {
     current: number;
     limit: number;
@@ -85,6 +99,10 @@ export default function ManageSubscriptionPage() {
   const [showPlans, setShowPlans] = useState(false);
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<string | null>(null);
   const loadingRef = useRef(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponValid, setCouponValid] = useState<{ planName: string } | null>(null);
   
   // Handle Stripe checkout redirect first, then load data
   useEffect(() => {
@@ -149,17 +167,24 @@ export default function ManageSubscriptionPage() {
       
       if (status && status.hasSubscription) {
         const isOrg = status.type === "organization";
+        const renewalDate = status.accessUntil ? new Date(status.accessUntil) : (status.renewalDate ? new Date(status.renewalDate) : new Date());
+        const couponPlan = !!status.couponPlan;
         setSubscription(isOrg ? {
           type: "organization",
           organizationName: me.tenantName || status.organizationName || "Organization",
           plan: status.plan.displayName,
           pricePerUser: status.plan.isPerUser ? status.plan.price : 0,
-          planPrice: status.plan.isPerUser ? 0 : (status.plan.price || 0), // Fixed price for non-per-user plans
-          activeUsers: metrics.currentUsers || 0,
+          planPrice: status.plan.isPerUser ? 0 : (status.plan.price || 0),
+          activeUsers: metrics.currentUsers || status.totalUsers || 0,
+          totalUsers: status.totalUsers,
+          totalMonthlyCostCents: status.totalMonthlyCostCents,
+          upcomingInvoiceAmountCents: status.upcomingInvoiceAmountCents,
+          proratedBillingHistory: status.proratedBillingHistory || [],
           billingCycle: "Monthly",
           status: status.status.toLowerCase() as any,
-          renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(),
+          renewalDate,
           coupon: null,
+          couponPlan,
           usage: {
             current: metrics.messagesThisMonth || 0,
             limit: status.plan.maxMessagesPerMonth || 0,
@@ -169,8 +194,9 @@ export default function ManageSubscriptionPage() {
           plan: status.plan.displayName,
           billingCycle: "Monthly",
           status: status.status.toLowerCase() as any,
-          renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(),
+          renewalDate,
           coupon: null,
+          couponPlan,
           usage: {
             current: metrics.messagesThisMonth || 0,
             limit: status.plan.maxMessagesPerMonth || 0,
@@ -230,22 +256,46 @@ export default function ManageSubscriptionPage() {
     }
   };
 
-  const handlePlanUpgrade = async (planName: string) => {
+  const handlePlanSelected = (planName: string) => {
     if (planName === "FREE") {
       toast.info("You're already on the Free plan or can downgrade by canceling your current subscription.");
       return;
     }
-    
+    if (planName === "ENTERPRISE") {
+      toast.info("Contact us for Enterprise pricing and custom solutions.");
+      return;
+    }
+    setSelectedPlanForUpgrade(planName);
+  };
+
+  const handleProceedToCheckout = async (couponCode?: string) => {
+    if (!selectedPlanForUpgrade) return;
     try {
-      const response = await adminClient.post("/api/subscription/create-checkout-session", {
-        planName: planName,
-      });
+      const body: { planName: string; couponCode?: string } = { planName: selectedPlanForUpgrade };
+      if (couponCode?.trim()) body.couponCode = couponCode.trim();
+      const response = await adminClient.post("/api/subscription/create-checkout-session", body);
       if (response.data.url) {
         window.location.href = response.data.url;
       }
     } catch (error: any) {
       console.error("Failed to create checkout session:", error);
       toast.error(error?.response?.data?.message || "Failed to upgrade plan");
+    }
+  };
+
+  const validateCouponForBilling = async (code: string) => {
+    try {
+      const res = await adminClient.get("/api/subscription/validate-coupon", { params: { code } });
+      return {
+        valid: !!res.data?.valid,
+        planName: res.data?.planName,
+        message: res.data?.message,
+      };
+    } catch (e: any) {
+      return {
+        valid: false,
+        message: e?.response?.data?.message || "Could not validate coupon",
+      };
     }
   };
 
@@ -317,13 +367,19 @@ export default function ManageSubscriptionPage() {
                 Cancel
               </button>
             </div>
-            <SubscriptionPlans 
-              onSelectPlan={(planName) => {
-                setSelectedPlanForUpgrade(planName);
-                handlePlanUpgrade(planName);
-              }}
-              selectedPlanName={selectedPlanForUpgrade}
-            />
+            {selectedPlanForUpgrade && selectedPlanForUpgrade !== "ENTERPRISE" && selectedPlanForUpgrade !== "FREE" ? (
+              <CouponCheckoutPrompt
+                planName={selectedPlanForUpgrade}
+                onProceed={handleProceedToCheckout}
+                onCancel={() => setSelectedPlanForUpgrade(null)}
+                validateCoupon={validateCouponForBilling}
+              />
+            ) : (
+              <SubscriptionPlans 
+                onSelectPlan={handlePlanSelected}
+                selectedPlanName={selectedPlanForUpgrade}
+              />
+            )}
           </div>
         )}
 
@@ -393,8 +449,40 @@ export default function ManageSubscriptionPage() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Active users</p>
-                    <p className="text-sm font-medium text-foreground">{subscription.activeUsers} users</p>
+                    <p className="text-xs text-muted-foreground">Total users</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {(subscription as OrganizationSubscription).totalUsers ?? subscription.activeUsers} users
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming invoice (per-user plans with Stripe) */}
+              {isOrg && (subscription as OrganizationSubscription).upcomingInvoiceAmountCents != null && (subscription as OrganizationSubscription).upcomingInvoiceAmountCents! > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-md bg-muted">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Upcoming invoice</p>
+                    <p className="text-sm font-medium text-foreground">
+                      ${((subscription as OrganizationSubscription).upcomingInvoiceAmountCents! / 100).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Total monthly cost (per-user plans) */}
+              {isOrg && (subscription as OrganizationSubscription).totalMonthlyCostCents != null && (subscription as OrganizationSubscription).totalMonthlyCostCents! > 0 && (
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-md bg-muted">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total monthly</p>
+                    <p className="text-sm font-medium text-foreground">
+                      ${((subscription as OrganizationSubscription).totalMonthlyCostCents! / 100).toFixed(2)}/month
+                    </p>
                   </div>
                 </div>
               )}
@@ -410,14 +498,18 @@ export default function ManageSubscriptionPage() {
                 </div>
               </div>
 
-              {/* Renewal Date */}
+              {/* Renewal / Access until (coupon = 1 month from apply, then fall back to Free) */}
               <div className="flex items-start gap-3">
                 <div className="p-2 rounded-md bg-muted">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">
-                    {subscription.status === "canceled" ? "Ends On" : "Renews On"}
+                    {subscription.status === "canceled"
+                      ? "Ends On"
+                      : subscription.couponPlan
+                        ? "Access until"
+                        : "Renews On"}
                   </p>
                   <p className="text-sm font-medium text-foreground">
                     {subscription.renewalDate.toLocaleDateString("en-US", {
@@ -426,6 +518,11 @@ export default function ManageSubscriptionPage() {
                       year: "numeric",
                     })}
                   </p>
+                  {subscription.couponPlan && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upgrade before this date or you&apos;ll fall back to Free plan.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -442,6 +539,108 @@ export default function ManageSubscriptionPage() {
                 </div>
               )}
             </div>
+
+            {/* Prorated billing history (when users added mid-cycle) */}
+            {isOrg && (subscription as OrganizationSubscription).proratedBillingHistory && (subscription as OrganizationSubscription).proratedBillingHistory!.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <h3 className="text-sm font-medium text-foreground mb-3">Prorated charges (users added mid-cycle)</h3>
+                <div className="space-y-2">
+                  {(subscription as OrganizationSubscription).proratedBillingHistory!.map((r: ProratedRecord, i: number) => (
+                    <div key={i} className="flex justify-between items-center py-2 px-3 rounded-lg bg-muted/50 text-sm">
+                      <span className="text-muted-foreground">
+                        {new Date(r.addedAt).toLocaleDateString()} — {r.newQuantity} users
+                      </span>
+                      {r.proratedAmountCents > 0 && (
+                        <span className="font-medium">${(r.proratedAmountCents / 100).toFixed(2)} prorated</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+              {/* Apply coupon (plan upgrade) */}
+              {(!subscription.coupon || subscription.plan === "Free Plan") && (
+                <div className="pt-3 border-t border-border space-y-2">
+                  <p className="text-xs font-medium text-foreground">Have a coupon code?</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setCouponError(null);
+                        setCouponValid(null);
+                      }}
+                      placeholder="e.g. BASIC-XXXXXXXX"
+                      className="flex-1 px-3 py-2 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
+                      disabled={applyingCoupon}
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const code = couponCode.trim();
+                        if (!code) {
+                          setCouponError("Enter a coupon code");
+                          return;
+                        }
+                        setApplyingCoupon(true);
+                        setCouponError(null);
+                        setCouponValid(null);
+                        try {
+                          const res = await adminClient.get("/api/subscription/validate-coupon", { params: { code } });
+                          if (res.data?.valid) {
+                            setCouponValid({ planName: res.data.planName || "Basic or Pro" });
+                          } else {
+                            setCouponError(res.data?.message || "Invalid coupon");
+                          }
+                        } catch (e: any) {
+                          setCouponError(e?.response?.data?.message || "Could not validate coupon");
+                        } finally {
+                          setApplyingCoupon(false);
+                        }
+                      }}
+                      disabled={applyingCoupon || !couponCode.trim()}
+                      className="px-3 py-2 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50"
+                    >
+                      Validate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const code = couponCode.trim();
+                        if (!code) {
+                          setCouponError("Enter a coupon code");
+                          return;
+                        }
+                        setApplyingCoupon(true);
+                        setCouponError(null);
+                        try {
+                          await adminClient.post("/api/subscription/apply-coupon", { code });
+                          toast.success("Coupon applied. Your plan has been updated.");
+                          setCouponCode("");
+                          setCouponValid(null);
+                          await loadSubscription();
+                        } catch (e: any) {
+                          const msg = e?.response?.data?.message || "Failed to apply coupon";
+                          setCouponError(msg);
+                          toast.error(msg);
+                        } finally {
+                          setApplyingCoupon(false);
+                        }
+                      }}
+                      disabled={applyingCoupon || !couponCode.trim()}
+                      className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  {couponError && <p className="text-xs text-destructive">{couponError}</p>}
+                  {couponValid && <p className="text-xs text-green-600 dark:text-green-400">Valid for {couponValid.planName}. Click Apply to activate.</p>}
+                </div>
+              )}
+
+            {/* Details Grid end - Prorated and Apply coupon are inside card, below grid */}
 
             {/* Monthly Estimate (Org only) */}
             {isOrg && monthlyEstimate !== null && (

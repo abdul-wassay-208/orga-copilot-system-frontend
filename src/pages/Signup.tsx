@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2, Check, Mail, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Loader2, Check, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiClient, adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import { CouponCheckoutPrompt } from "@/components/CouponCheckoutPrompt";
 
-type SignupStep = "form" | "otp" | "plan";
+type SignupStep = "form" | "otp" | "plan" | "coupon";
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -31,9 +32,7 @@ export default function SignupPage() {
 
   // Load plans when plan step is shown
   useEffect(() => {
-    if (step === "plan" && plans.length === 0) {
-      loadPlans();
-    }
+    if (step === "plan" && plans.length === 0) loadPlans();
   }, [step]);
 
   const loadPlans = async () => {
@@ -277,34 +276,98 @@ export default function SignupPage() {
     }
   };
 
-  const handlePlanSelection = async (planName: string) => {
+  const handlePlanSelected = (planName: string) => {
+    if (planName === "ENTERPRISE") return;
+    setSelectedPlan(planName);
+    setStep("coupon");
+  };
+
+  const handleProceedToCheckout = async (couponCode?: string) => {
+    if (!selectedPlan) return;
     setIsLoading(true);
     try {
-      // User is authenticated after OTP verification, so use adminClient
-      if (planName === "FREE") {
-        // Create FREE subscription
-        const response = await adminClient.post("/api/subscription/create-free", {});
-        if (response.data.success) {
-          toast.success("Free plan activated! Welcome to Evo Associates.");
-          navigate("/chat");
-        }
-      } else {
-        // For paid plans, redirect to Stripe checkout
-        const checkoutResponse = await adminClient.post("/api/subscription/create-checkout-session", {
-          planName: planName,
-        });
-        if (checkoutResponse.data.url) {
-          toast.success("Redirecting to payment...");
-          window.location.href = checkoutResponse.data.url;
-        }
+      const body: { planName: string; couponCode?: string } = { planName: selectedPlan };
+      if (couponCode?.trim()) body.couponCode = couponCode.trim();
+      const checkoutResponse = await adminClient.post("/api/subscription/create-checkout-session", body);
+      if (checkoutResponse.data.url) {
+        toast.success("Redirecting to payment...");
+        window.location.href = checkoutResponse.data.url;
       }
     } catch (error: any) {
-      console.error("Plan selection error:", error);
-      toast.error(error?.response?.data?.message || "Failed to set plan. Please try again.");
+      console.error("Checkout error:", error);
+      toast.error(error?.response?.data?.message || "Failed to start checkout. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleSkipForNow = async () => {
+    setIsLoading(true);
+    try {
+      const response = await adminClient.post("/api/subscription/create-free", {});
+      if (response.data?.success) {
+        toast.success("Free plan activated! Welcome.");
+        navigate("/chat");
+      }
+    } catch (error: any) {
+      console.error("Skip for now error:", error);
+      toast.error(error?.response?.data?.message || "Failed to continue. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const validateCouponForSignup = async (code: string) => {
+    try {
+      const res = await apiClient.get("/api/subscription/validate-coupon-by-email", {
+        params: { code, email: formData.email.trim() },
+      });
+      return {
+        valid: !!res.data?.valid,
+        planName: res.data?.planName,
+        message: res.data?.message,
+      };
+    } catch (e: any) {
+      return {
+        valid: false,
+        message: e?.response?.data?.message || "Could not validate coupon",
+      };
+    }
+  };
+
+  // Coupon prompt step (after plan selection)
+  if (step === "coupon" && selectedPlan) {
+    const plan = plans.find((p: any) => p.name === selectedPlan);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <h1 className="text-xl font-semibold text-foreground">Almost there</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {plan?.displayName || selectedPlan} — {plan?.price === 0 ? "Free" : `$${plan?.price}/${plan?.priceUnit || "mo"}`}
+            </p>
+          </div>
+          <CouponCheckoutPrompt
+            planName={selectedPlan}
+            planDisplayName={plan?.displayName}
+            onProceed={handleProceedToCheckout}
+            onCancel={() => setStep("plan")}
+            validateCoupon={validateCouponForSignup}
+            disabled={isLoading}
+          />
+          <p className="text-center text-sm text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => navigate("/login")}
+              className="text-primary hover:text-primary/80"
+            >
+              Already have an account? Sign in
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // OTP Verification Step
   if (step === "otp") {
@@ -426,88 +489,112 @@ export default function SignupPage() {
                 Retry
               </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {plans.map((plan) => (
-                <div
-                  key={plan.name}
-                  onClick={() => setSelectedPlan(plan.name)}
-                  className={cn(
-                    "relative flex flex-col p-5 rounded-xl border transition-all cursor-pointer",
-                    selectedPlan === plan.name
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-border bg-card hover:border-primary/50"
-                  )}
-                >
-                  {plan.name === "STANDARD" && (
-                    <div className="absolute -top-2.5 left-1/2 -translate-x-1/2">
-                      <span className="px-3 py-1 text-xs font-medium rounded-full bg-primary text-primary-foreground">
-                        Popular
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="space-y-3 mb-4">
-                    <h3 className="text-base font-semibold text-foreground">{plan.displayName}</h3>
-                    <p className="text-xs text-muted-foreground">{plan.description}</p>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold text-foreground">
-                        {plan.price === 0 ? "Free" : `$${plan.price}`}
-                      </span>
-                      {plan.priceUnit && plan.price > 0 && (
-                        <span className="text-sm text-muted-foreground">/{plan.priceUnit}</span>
-                      )}
-                    </div>
+          ) : (() => {
+              const signupPlans = (plans as any[]).filter((p: any) => ["BASIC", "PRO", "ENTERPRISE"].includes(p.name));
+              if (signupPlans.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">No plans available. Please try again.</p>
+                    <button onClick={() => loadPlans()} className="mt-4 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">Retry</button>
                   </div>
-                  
-                  <div className="flex-1 mb-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-foreground">
-                        <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span>{plan.maxMessagesPerMonth.toLocaleString()} messages/month</span>
-                      </div>
-                      {plan.maxUsers && (
-                        <div className="flex items-center gap-2 text-xs text-foreground">
-                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                          <span>Up to {plan.maxUsers} users</span>
-                        </div>
-                      )}
-                      {plan.isPerUser && (
-                        <div className="flex items-center gap-2 text-xs text-foreground">
-                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                          <span>Per-user billing</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setSelectedPlan(plan.name);
-                      await handlePlanSelection(plan.name);
-                    }}
-                    disabled={isLoading}
+                );
+              }
+              return (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {signupPlans.map((plan: any) => (
+                  <div
+                    key={plan.name}
+                    onClick={() => plan.name !== "ENTERPRISE" && setSelectedPlan(plan.name)}
                     className={cn(
-                      "w-full py-2.5 rounded-lg font-medium text-sm transition-colors",
+                      "relative flex flex-col p-5 rounded-xl border transition-all",
+                      plan.name !== "ENTERPRISE" && "cursor-pointer",
                       selectedPlan === plan.name
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "border border-chat-input-border bg-chat-input-bg text-foreground hover:bg-chat-hover",
-                      isLoading && "opacity-50 cursor-not-allowed"
+                        ? "border-primary bg-primary/5 shadow-sm"
+                        : "border-border bg-card hover:border-primary/50"
                     )}
                   >
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                    ) : selectedPlan === plan.name ? (
-                      "Selected"
+                    <div className="space-y-3 mb-4">
+                      <h3 className="text-base font-semibold text-foreground">{plan.displayName}</h3>
+                      {plan.name === "ENTERPRISE" ? (
+                        <p className="text-sm text-muted-foreground">Contact us</p>
+                      ) : (
+                        <>
+                          <p className="text-xs text-muted-foreground">{plan.description}</p>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-foreground">
+                              ${plan.price}
+                            </span>
+                            {plan.priceUnit && (
+                              <span className="text-sm text-muted-foreground">/{plan.priceUnit}</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+
+                    {plan.name === "ENTERPRISE" ? (
+                      <div className="flex-1 mb-4" />
                     ) : (
-                      "Select Plan"
+                      <div className="flex-1 mb-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-foreground">
+                            <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                            <span>{plan.maxMessagesPerMonth?.toLocaleString()} messages/month</span>
+                          </div>
+                          {plan.maxUsers != null && plan.maxUsers > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-foreground">
+                              <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                              <span>Up to {plan.maxUsers} users</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+
+                    {plan.name === "ENTERPRISE" ? (
+                      <span
+                        className="w-full py-2.5 rounded-lg font-medium text-sm text-center border border-chat-input-border bg-chat-input-bg text-muted-foreground inline-block"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Contact us
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlanSelected(plan.name);
+                        }}
+                        disabled={isLoading}
+                        className={cn(
+                          "w-full py-2.5 rounded-lg font-medium text-sm transition-colors",
+                          selectedPlan === plan.name
+                            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                            : "border border-chat-input-border bg-chat-input-bg text-foreground hover:bg-chat-hover",
+                          isLoading && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {selectedPlan === plan.name ? "Selected" : "Select Plan"}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-center">
+                <button
+                  type="button"
+                  onClick={handleSkipForNow}
+                  disabled={isLoading}
+                  className="text-sm text-primary underline underline-offset-2 hover:text-primary/80 transition-colors disabled:opacity-50"
+                >
+                  Skip for now
+                </button>
+              </p>
+            </>
+          );
+          })()}
           
           <div className="text-center">
             <button
