@@ -160,9 +160,13 @@ export default function SignupPage() {
             
             if (response.data.redirectTo === "checkout") {
               // Redirect to Stripe checkout for paid plans
-              const checkoutResponse = await apiClient.post("/api/subscription/create-checkout-session", {
-                planName: selectedPlan,
-              });
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const checkoutBody: { planName: string; successUrl?: string; cancelUrl?: string } = { planName: selectedPlan };
+              if (origin) {
+                checkoutBody.successUrl = `${origin}/billing?session_id={CHECKOUT_SESSION_ID}`;
+                checkoutBody.cancelUrl = `${origin}/billing?canceled=true`;
+              }
+              const checkoutResponse = await apiClient.post("/api/subscription/create-checkout-session", checkoutBody);
               if (checkoutResponse.data.url) {
                 window.location.href = checkoutResponse.data.url;
                 return;
@@ -286,8 +290,13 @@ export default function SignupPage() {
     if (!selectedPlan) return;
     setIsLoading(true);
     try {
-      const body: { planName: string; couponCode?: string } = { planName: selectedPlan };
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const body: { planName: string; couponCode?: string; successUrl?: string; cancelUrl?: string } = { planName: selectedPlan };
       if (couponCode?.trim()) body.couponCode = couponCode.trim();
+      if (origin) {
+        body.successUrl = `${origin}/billing?session_id={CHECKOUT_SESSION_ID}`;
+        body.cancelUrl = `${origin}/billing?canceled=true`;
+      }
       const checkoutResponse = await adminClient.post("/api/subscription/create-checkout-session", body);
       if (checkoutResponse.data.url) {
         toast.success("Redirecting to payment...");

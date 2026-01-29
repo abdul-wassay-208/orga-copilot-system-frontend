@@ -271,8 +271,13 @@ export default function ManageSubscriptionPage() {
   const handleProceedToCheckout = async (couponCode?: string) => {
     if (!selectedPlanForUpgrade) return;
     try {
-      const body: { planName: string; couponCode?: string } = { planName: selectedPlanForUpgrade };
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const body: { planName: string; couponCode?: string; successUrl?: string; cancelUrl?: string } = { planName: selectedPlanForUpgrade };
       if (couponCode?.trim()) body.couponCode = couponCode.trim();
+      if (origin) {
+        body.successUrl = `${origin}/billing?session_id={CHECKOUT_SESSION_ID}`;
+        body.cancelUrl = `${origin}/billing?canceled=true`;
+      }
       const response = await adminClient.post("/api/subscription/create-checkout-session", body);
       if (response.data.url) {
         window.location.href = response.data.url;
@@ -301,11 +306,16 @@ export default function ManageSubscriptionPage() {
 
   const handleManageSubscription = async () => {
     try {
-      // Open Stripe customer portal for managing existing subscription
-      const response = await adminClient.post("/api/subscription/create-checkout-session", {
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const body: { planName: string; successUrl?: string; cancelUrl?: string } = {
         planName: subscription?.plan === "Free Plan" ? "STANDARD" : 
                  subscription?.plan === "Standard Plan" ? "STANDARD" : "ENTERPRISE",
-      });
+      };
+      if (origin) {
+        body.successUrl = `${origin}/billing?session_id={CHECKOUT_SESSION_ID}`;
+        body.cancelUrl = `${origin}/billing?canceled=true`;
+      }
+      const response = await adminClient.post("/api/subscription/create-checkout-session", body);
       if (response.data.url) {
         window.location.href = response.data.url;
       }
