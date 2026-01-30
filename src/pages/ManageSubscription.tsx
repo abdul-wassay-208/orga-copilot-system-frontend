@@ -1,11 +1,21 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { CouponCheckoutPrompt } from "@/components/CouponCheckoutPrompt";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type SubscriptionType = "individual" | "organization";
 
@@ -98,6 +108,8 @@ export default function ManageSubscriptionPage() {
   const [loading, setLoading] = useState(true);
   const [showPlans, setShowPlans] = useState(false);
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const loadingRef = useRef(false);
   const [couponCode, setCouponCode] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
@@ -322,6 +334,21 @@ export default function ManageSubscriptionPage() {
     } catch (error: any) {
       console.error("Failed to create checkout session:", error);
       toast.error(error?.response?.data?.message || "Failed to manage subscription");
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    setCancelling(true);
+    try {
+      await adminClient.post("/api/subscription/cancel");
+      toast.success("Subscription canceled. You will have access until the end of your billing period.");
+      setShowCancelDialog(false);
+      await loadSubscription();
+    } catch (error: any) {
+      console.error("Failed to cancel subscription:", error);
+      toast.error(error?.response?.data?.message || "Failed to cancel subscription");
+    } finally {
+      setCancelling(false);
     }
   };
   
@@ -720,7 +747,42 @@ export default function ManageSubscriptionPage() {
               <CreditCard className="h-4 w-4" />
               Update Payment Method
             </button>
+
+            {subscription.status !== "canceled" && subscription.plan !== "Free Plan" && (
+              <button
+                onClick={() => setShowCancelDialog(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 text-sm font-medium transition-colors"
+              >
+                <XCircle className="h-4 w-4" />
+                Cancel Subscription
+              </button>
+            )}
           </div>
+
+          {/* Cancel Subscription Confirmation */}
+          <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+            <AlertDialogContent className="sm:max-w-[425px]">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancel subscription?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your subscription will be canceled at the end of your current billing period. You will continue to have access until {subscription?.renewalDate?.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="sm:justify-end">
+                <AlertDialogCancel disabled={cancelling}>Keep Subscription</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCancelSubscription();
+                  }}
+                  disabled={cancelling}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cancel Subscription"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Footer Note */}
           <p className="text-xs text-muted-foreground text-center">
