@@ -1174,7 +1174,14 @@ export function ChatLayout() {
             <p className="text-sm font-medium text-foreground">Conversation limit reached.</p>
             <p className="text-sm text-muted-foreground">Please start a new chat.</p>
             <div className="flex gap-2">
-              <button onClick={() => { setShowConversationLimitReached(false); handleNewChat(); }} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium">New chat</button>
+              <button
+                onClick={() => { setShowConversationLimitReached(false); handleNewChat(); }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border
+                  bg-[#221F20] text-white hover:bg-[#FFFFFF] hover:text-[#221F20] hover:border-[#221F20]/30
+                  dark:bg-[#FFFFFF] dark:text-[#221F20] dark:border-[#221F20]/20 dark:hover:bg-white/90 dark:hover:ring-2 dark:hover:ring-white/20"
+              >
+                New chat
+              </button>
               <button onClick={() => setShowConversationLimitReached(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Close</button>
             </div>
           </div>

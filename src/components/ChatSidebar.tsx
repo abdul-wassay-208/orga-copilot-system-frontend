@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User, Lock } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Conversation } from "@/types/chat";
@@ -78,7 +78,9 @@ export function ChatSidebar({
         </button>
         <button
           onClick={onNewChat}
-          className="p-2 rounded-md transition-colors bg-primary/10 hover:bg-primary/20 text-primary"
+          className="p-2 rounded-md transition-all duration-200 border
+            bg-[#221F20] text-white hover:bg-[#FFFFFF] hover:text-[#221F20] hover:border-[#221F20]/30
+            dark:bg-[#FFFFFF] dark:text-[#221F20] dark:border-[#221F20]/20 dark:hover:bg-white/90 dark:hover:ring-2 dark:hover:ring-white/20"
           aria-label="New chat"
         >
           <Plus className="h-5 w-5" />
@@ -94,10 +96,7 @@ export function ChatSidebar({
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Lock className="h-4 w-4 text-primary" />
-            </div>
-            <h1 className="text-base font-semibold text-sidebar-foreground">Evo Associate</h1>
+            <img src="/assets/evo-logo.svg" alt="Evo Associate" className="h-11 w-200 object-contain flex-shrink-0" />
           </div>
           <button
             onClick={onToggleCollapse}
@@ -109,7 +108,9 @@ export function ChatSidebar({
         </div>
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium shadow-sm"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm border
+            bg-[#221F20] text-white hover:bg-[#FFFFFF] hover:text-[#221F20] hover:border-[#221F20]/30
+            dark:bg-[#FFFFFF] dark:text-[#221F20] dark:border-[#221F20]/20 dark:hover:bg-white/90 dark:hover:ring-2 dark:hover:ring-white/20"
         >
           <Plus className="h-4 w-4" />
           New Chat
