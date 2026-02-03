@@ -36,8 +36,14 @@ export function ChatLayout() {
     messagesUsed: number;
     messagesLimit: number;
     percentUsed: number;
+    usageAlert90?: boolean;
+    usageAlert100?: boolean;
   } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
+  const [showLongChatWarning, setShowLongChatWarning] = useState(false);
+  const [showConversationLimitReached, setShowConversationLimitReached] = useState(false);
+  const [conversationLimitReachedForActive, setConversationLimitReachedForActive] = useState(false);
+  const [showUsage90Alert, setShowUsage90Alert] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [showShareModal, setShowShareModal] = useState(false);
@@ -50,6 +56,9 @@ export function ChatLayout() {
   const activeConversation = conversations.find(
     (c) => c.id === activeConversationId
   );
+
+  // Free plan: 0 message limit — disable input and prompts
+  const isFreeUser = usageData != null && usageData.messagesLimit <= 0;
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,10 +90,16 @@ export function ChatLayout() {
         messagesUsed: data.messagesUsed || 0,
         messagesLimit: data.messagesLimit || 1000,
         percentUsed: data.percentUsed || 0,
+        usageAlert90: data.usageAlert90,
+        usageAlert100: data.usageAlert100,
       });
       // Reset dismissed warning if usage drops below 80%
       if (data.percentUsed < 80) {
         setDismissedWarning(false);
+      }
+      // Show 90% upgrade alert popup (user, admin, superadmin see this)
+      if (data.usageAlert90) {
+        setShowUsage90Alert(true);
       }
     } catch (error: any) {
       console.error("Failed to load usage data:", error);
@@ -198,6 +213,7 @@ export function ChatLayout() {
   };
 
   const handleNewChat = async () => {
+    setConversationLimitReachedForActive(false);
     try {
       const response = await chatClient.post("/chat/conversations");
       const newConv: Conversation = {
@@ -219,7 +235,7 @@ export function ChatLayout() {
   const handleSelectConversation = async (id: string) => {
     setActiveConversationId(id);
     setMobileMenuOpen(false);
-    
+    setConversationLimitReachedForActive(false);
     // Load conversation messages if not already loaded
     const conv = conversations.find((c) => c.id === id);
     if (conv && conv.messages.length === 0) {
@@ -617,7 +633,13 @@ export function ChatLayout() {
       });
 
       const replyText = response.data?.reply || "No response received.";
-      
+      if (response.data?.showLongChatWarning) {
+        setShowLongChatWarning(true);
+      }
+      if (response.data?.conversationLimitReached) {
+        setShowConversationLimitReached(true);
+        setConversationLimitReachedForActive(true);
+      }
       // Refresh usage data after sending message
       loadUsageData();
       
@@ -799,10 +821,17 @@ export function ChatLayout() {
       }
     } catch (error: any) {
       console.error("Failed to send message:", error);
-      
-      // Handle usage limit error (429)
-      if (error?.response?.status === 429) {
-        const errorMessage = error?.response?.data?.message || "Monthly message limit reached";
+      const status = error?.response?.status;
+      const data = error?.response?.data || {};
+      const errorMessage = data.message || "Something went wrong.";
+      if (status === 403) {
+        toast.error(errorMessage || "Free plan users cannot send messages. Please upgrade your plan.");
+        loadUsageData();
+      } else if (status === 429) {
+        if (data.conversationLimitReached) {
+          setShowConversationLimitReached(true);
+          setConversationLimitReachedForActive(true);
+        }
         toast.error(errorMessage);
         // Refresh usage data to update UI (debounced)
         loadUsageData();
@@ -939,20 +968,49 @@ export function ChatLayout() {
             </div>
             <EmptyState 
               onSelectPrompt={handleSendMessage} 
-              disabled={usageData?.percentUsed >= 100}
+              disabled={isFreeUser || usageData?.percentUsed >= 100 || conversationLimitReachedForActive}
             />
             <ChatInput 
               onSend={handleSendMessage} 
-              disabled={isStreaming || (usageData?.percentUsed >= 100)}
-              placeholder={usageData?.percentUsed >= 100 
-                ? "Monthly message limit reached. Contact your administrator to upgrade."
-                : "What's on your mind?"}
+              disabled={isStreaming || isFreeUser || (usageData?.percentUsed >= 100)}
+              placeholder={isFreeUser 
+                ? "Upgrade your plan to send messages."
+                : usageData?.percentUsed >= 100 
+                  ? "Monthly message limit reached. Contact your administrator to upgrade."
+                  : "What's on your mind?"}
             />
           </>
         ) : (
           <>
+            {/* Free plan: upgrade to send messages */}
+            {isFreeUser && !dismissedWarning && (
+              <div className="mx-4 md:mx-6 mt-4 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2 animate-fade-in">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-primary" />
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">Free plan</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Upgrade your plan to send messages. Go to Settings to choose Basic or Pro, or use a coupon code if you have one.
+                    </p>
+                    <Link
+                      to="/settings"
+                      className="text-xs font-medium text-primary hover:text-primary/80 underline"
+                    >
+                      Upgrade plan
+                    </Link>
+                  </div>
+                  <button
+                    onClick={() => setDismissedWarning(true)}
+                    className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                    aria-label="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
             {/* Usage Warning Banner */}
-            {usageData && usageData.percentUsed >= 80 && !dismissedWarning && (
+            {usageData && !isFreeUser && (usageData.percentUsed >= 80 || usageData.usageAlert90) && !dismissedWarning && (
               <div className={cn(
                 "mx-4 md:mx-6 mt-4 p-3 rounded-lg border space-y-2 animate-fade-in",
                 usageData.percentUsed >= 100
@@ -1010,15 +1068,17 @@ export function ChatLayout() {
               <>
                 <EmptyState 
                   onSelectPrompt={handleSendMessage} 
-                  disabled={usageData?.percentUsed >= 100}
+                  disabled={isFreeUser || usageData?.percentUsed >= 100 || conversationLimitReachedForActive}
                 />
                 <ChatInput 
                   onSend={handleSendMessage} 
-                  disabled={isStreaming || (usageData?.percentUsed >= 100)}
-                  placeholder={usageData?.percentUsed >= 100 
-                    ? "Monthly message limit reached. Contact your administrator to upgrade."
-                    : "What's on your mind?"}
-                  showPromptChips={true}
+                  disabled={isStreaming || isFreeUser || (usageData?.percentUsed >= 100)}
+                  placeholder={isFreeUser 
+                    ? "Upgrade your plan to send messages."
+                    : usageData?.percentUsed >= 100 
+                      ? "Monthly message limit reached. Contact your administrator to upgrade."
+                      : "What's on your mind?"}
+                  showPromptChips={!isFreeUser}
                   onSelectPrompt={handleSendMessage}
                 />
               </>
@@ -1057,11 +1117,13 @@ export function ChatLayout() {
                 {/* Input */}
                 <ChatInput 
                   onSend={handleSendMessage} 
-                  disabled={isStreaming || (usageData?.percentUsed >= 100)}
-                  placeholder={usageData?.percentUsed >= 100 
-                    ? "Monthly message limit reached. Contact your administrator to upgrade."
-                    : "What's on your mind?"}
-                  showPromptChips={activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
+                  disabled={isStreaming || isFreeUser || (usageData?.percentUsed >= 100)}
+                  placeholder={isFreeUser 
+                    ? "Upgrade your plan to send messages."
+                    : usageData?.percentUsed >= 100 
+                      ? "Monthly message limit reached. Contact your administrator to upgrade."
+                      : "What's on your mind?"}
+                  showPromptChips={!isFreeUser && activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
                   onSelectPrompt={handleSendMessage}
                 />
               </>
@@ -1091,6 +1153,55 @@ export function ChatLayout() {
           />
         ) : null;
       })()}
+
+      {/* Per-chat: Long chat warning (at 15 messages) */}
+      {showLongChatWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowLongChatWarning(false)} />
+          <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4">
+            <p className="text-sm font-medium text-foreground">Your chat is getting long.</p>
+            <p className="text-sm text-muted-foreground">Please start a new conversation for the best experience.</p>
+            <button onClick={() => setShowLongChatWarning(false)} className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium">OK</button>
+          </div>
+        </div>
+      )}
+
+      {/* Per-chat: Conversation limit reached (20 messages) */}
+      {showConversationLimitReached && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowConversationLimitReached(false)} />
+          <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4">
+            <p className="text-sm font-medium text-foreground">Conversation limit reached.</p>
+            <p className="text-sm text-muted-foreground">Please start a new chat.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowConversationLimitReached(false); handleNewChat(); }}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border
+                  bg-[#221F20] text-white hover:bg-[#FFFFFF] hover:text-[#221F20] hover:border-[#221F20]/30
+                  dark:bg-[#FFFFFF] dark:text-[#221F20] dark:border-[#221F20]/20 dark:hover:bg-white/90 dark:hover:ring-2 dark:hover:ring-white/20"
+              >
+                New chat
+              </button>
+              <button onClick={() => setShowConversationLimitReached(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 90% usage alert */}
+      {showUsage90Alert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowUsage90Alert(false)} />
+          <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4">
+            <p className="text-sm font-medium text-foreground">Approaching your message limit</p>
+            <p className="text-sm text-muted-foreground">You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption.</p>
+            <div className="flex gap-2">
+              <Link to="/settings" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
+              <button onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

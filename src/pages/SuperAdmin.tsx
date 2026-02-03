@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -33,7 +34,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-type Tab = "tenants" | "usage" | "knowledge" | "limits";
+type Tab = "tenants" | "usage" | "coupons" | "users" | "knowledge" | "limits";
 
 interface Tenant {
   id: string;
@@ -103,6 +104,8 @@ export default function SuperAdminPage() {
   const tabs = [
     { id: "tenants" as Tab, label: "Tenants", icon: Building2 },
     { id: "usage" as Tab, label: "Usage Overview", icon: BarChart3 },
+    { id: "coupons" as Tab, label: "Coupons", icon: FileText },
+    { id: "users" as Tab, label: "Users", icon: Users },
   ];
 
   if (checkingRole) {
@@ -169,6 +172,8 @@ export default function SuperAdminPage() {
       <main className="max-w-5xl mx-auto px-4 py-6">
         {activeTab === "tenants" && <TenantsTab />}
         {activeTab === "usage" && <UsageOverviewTab />}
+        {activeTab === "coupons" && <CouponsTab />}
+        {activeTab === "users" && <SuperAdminUsersTab />}
         {activeTab === "knowledge" && <GlobalKnowledgeTab />}
         {activeTab === "limits" && <DefaultLimitsTab />}
       </main>
@@ -185,6 +190,9 @@ function TenantsTab() {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [limitModalTenant, setLimitModalTenant] = useState<Tenant | null>(null);
+  const [limitModalValue, setLimitModalValue] = useState("");
+  const [savingLimit, setSavingLimit] = useState(false);
   const pageSize = 10;
 
   useEffect(() => {
@@ -217,8 +225,8 @@ function TenantsTab() {
           name: t.name,
           status,
           usersCount: 0, // Will be calculated separately
-          messagesUsed: t.messagesUsed || 0, // Use API value from backend
-          messagesLimit: t.messagesLimit || t.maxMessagesPerMonth || 0, // Use messagesLimit first, fallback to maxMessagesPerMonth
+          messagesUsed: Number(t.messagesUsed ?? 0),
+          messagesLimit: Number(t.messagesLimit ?? t.maxMessagesPerMonth ?? 500),
           plan: t.subscriptionPlan || "FREE",
           admin: t.admin ? {
             id: String(t.admin.id),
@@ -279,6 +287,36 @@ function TenantsTab() {
       case "trial": return "Trial";
       case "grace": return "Grace Period";
       case "inactive": return "Inactive";
+    }
+  };
+
+  const openLimitModal = (tenant: Tenant, e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    setLimitModalTenant(tenant);
+    setLimitModalValue(String(tenant.messagesLimit ?? 500));
+  };
+
+  const handleSaveLimit = async () => {
+    if (!limitModalTenant) return;
+    const val = parseInt(limitModalValue, 10);
+    if (isNaN(val) || val <= 0) {
+      toast.error("Enter a valid positive number");
+      return;
+    }
+    setSavingLimit(true);
+    try {
+      await adminClient.put(`/api/admin/super/tenants/${limitModalTenant.id}/usage-limit`, {
+        monthlyMessageLimit: val,
+      });
+      toast.success("Limit updated. Tenant admin has been notified.");
+      setLimitModalTenant(null);
+      setLimitModalValue("");
+      await loadTenants(currentPage);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Failed to update limit");
+    } finally {
+      setSavingLimit(false);
     }
   };
 
@@ -381,15 +419,67 @@ function TenantsTab() {
         </button>
       </div>
 
+      {/* Limit edit modal - rendered via portal to body for true centered popup overlay */}
+      {limitModalTenant && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="limit-modal-title">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setLimitModalTenant(null)} aria-hidden="true" />
+          <div className="relative z-10 bg-card border border-border rounded-xl shadow-2xl p-6 max-w-sm w-full space-y-4 animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <h2 id="limit-modal-title" className="text-lg font-semibold text-foreground">Edit message limit</h2>
+              <button onClick={() => setLimitModalTenant(null)} className="p-1.5 rounded-lg hover:bg-chat-hover text-muted-foreground" aria-label="Close">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {limitModalTenant.name} — currently {(limitModalTenant.messagesUsed ?? 0).toLocaleString()} / {(limitModalTenant.messagesLimit ?? 500).toLocaleString()} used
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">New monthly limit</label>
+              <input
+                type="number"
+                min={1}
+                value={limitModalValue}
+                onChange={(e) => setLimitModalValue(e.target.value)}
+                placeholder="e.g. 500"
+                className="w-full px-3 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tenant admin will receive an email notification when the limit is increased.
+            </p>
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                onClick={() => setLimitModalTenant(null)}
+                className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveLimit}
+                disabled={savingLimit || !limitModalValue.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+              >
+                {savingLimit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Save
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Tenants list */}
-      <div className="border border-border rounded-xl divide-y divide-border overflow-hidden">
-        {tenants.map((tenant) => (
-          <div key={tenant.id} className="flex items-center justify-between p-4 bg-card hover:bg-chat-hover/50 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+      <div className="border border-border rounded-xl divide-y divide-border overflow-x-auto">
+        {tenants.map((tenant) => {
+          const used = tenant.messagesUsed ?? 0;
+          const limit = tenant.messagesLimit ?? 500;
+          return (
+          <div key={tenant.id} className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors min-w-0">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                 <Building2 className="h-5 w-5 text-muted-foreground" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-foreground">{tenant.name}</p>
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>{tenant.plan} · {tenant.totalEmployees} employees</p>
@@ -406,20 +496,29 @@ function TenantsTab() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              {/* Usage bar - numbers only */}
-              <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{tenant.messagesUsed.toLocaleString()} / {tenant.messagesLimit.toLocaleString()}</span>
-                <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Limit / Used - clickable to edit */}
+              <button
+                type="button"
+                onClick={(e) => openLimitModal(tenant, e)}
+                className={cn(
+                  "flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors",
+                  "hover:bg-muted/80 border border-border",
+                  "text-foreground bg-muted/30"
+                )}
+                title="Click to change limit"
+              >
+                <span className="font-medium whitespace-nowrap">{used.toLocaleString()} / {limit.toLocaleString()}</span>
+                <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden min-w-[64px]">
                   <div
                     className={cn(
                       "h-full rounded-full",
-                      (tenant.messagesUsed / tenant.messagesLimit) > 0.9 ? "bg-destructive" : "bg-primary/60"
+                      limit > 0 && (used / limit) > 0.9 ? "bg-destructive" : "bg-primary/60"
                     )}
-                    style={{ width: `${Math.min((tenant.messagesUsed / tenant.messagesLimit) * 100, 100)}%` }}
+                    style={{ width: `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
                   />
                 </div>
-              </div>
+              </button>
               <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", getStatusColor(tenant.status))}>
                 {getStatusLabel(tenant.status)}
               </span>
@@ -431,7 +530,8 @@ function TenantsTab() {
               </Link>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {/* Pagination */}
@@ -581,6 +681,7 @@ function UsageOverviewTab() {
     activeThisMonth: 0,
   });
   const [topTenants, setTopTenants] = useState<Array<{ name: string; usage: number; limit: number }>>([]);
+  const [tenantsAt90, setTenantsAt90] = useState<Array<{ name: string; usage: number; limit: number; percent: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -619,10 +720,23 @@ function UsageOverviewTab() {
           usage: t.messagesUsed || 0,
           limit: t.messagesLimit || t.maxMessagesPerMonth || 0,
         }))
-        .sort((a, b) => b.usage - a.usage)
+        .filter((x: { limit: number }) => x.limit > 0)
+        .sort((a: { usage: number }, b: { usage: number }) => b.usage - a.usage)
         .slice(0, 10);
       
       setTopTenants(sorted);
+      
+      // Tenants at 90%+ for usage alerts (user, admin, superadmin)
+      const at90 = tenants
+        .map((t: any) => {
+          const usage = t.messagesUsed || 0;
+          const limit = t.messagesLimit || t.maxMessagesPerMonth || 0;
+          const percent = limit > 0 ? Math.round((usage * 100) / limit) : 0;
+          return { name: t.name, usage, limit, percent };
+        })
+        .filter((x: { limit: number; percent: number }) => x.limit > 0 && x.percent >= 90)
+        .sort((a: { percent: number }, b: { percent: number }) => b.percent - a.percent);
+      setTenantsAt90(at90);
     } catch (error: any) {
       console.error("Failed to load usage data:", error);
       toast.error("Failed to load usage data");
@@ -642,6 +756,26 @@ function UsageOverviewTab() {
 
   return (
     <div className="space-y-6">
+      {/* Usage alerts: 90%+ (notify user, admin, superadmin) */}
+      {tenantsAt90.length > 0 && (
+        <div className="p-5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+          <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            Usage alerts (90%+ of plan limit)
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            These organizations are at or above 90% of their message limit. Users see an upgrade prompt; ensure admins are aware.
+          </p>
+          <ul className="text-sm text-foreground space-y-1">
+            {tenantsAt90.map((t) => (
+              <li key={t.name}>
+                {t.name}: {t.usage}/{t.limit} ({t.percent}%)
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Global stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-5 rounded-xl border border-border bg-card">
@@ -694,6 +828,519 @@ function UsageOverviewTab() {
           Only aggregate usage numbers are shown. Conversation content is never accessible.
         </p>
       </div>
+    </div>
+  );
+}
+
+interface CouponItem {
+  id: number;
+  code: string;
+  planName: string;
+  assignToEmail: string | null;
+  expiresAt: string | null;
+  used: boolean;
+  usedAt: string | null;
+  createdAt: string | null;
+  status: "active" | "used" | "expired";
+}
+
+function CouponsTab() {
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [planName, setPlanName] = useState<"BASIC" | "PRO">("BASIC");
+  const [assignToEmail, setAssignToEmail] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [lastCreated, setLastCreated] = useState<{ code: string; planName: string; assignToEmail: string; expiresAt: string } | null>(null);
+  const [coupons, setCoupons] = useState<CouponItem[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const pageSize = 10;
+
+  const loadCoupons = async (page: number = 0) => {
+    try {
+      setLoadingCoupons(true);
+      const response = await adminClient.get("/api/admin/super/coupons", {
+        params: { page, size: pageSize },
+      });
+      const list = response.data?.coupons ?? [];
+      setCoupons(list.map((c: any) => ({
+        id: c.id,
+        code: c.code ?? "",
+        planName: c.planName ?? "",
+        assignToEmail: c.assignToEmail ?? null,
+        expiresAt: c.expiresAt ?? null,
+        used: !!c.used,
+        usedAt: c.usedAt ?? null,
+        createdAt: c.createdAt ?? null,
+        status: c.status ?? (c.used ? "used" : "active"),
+      })));
+      setTotalPages(response.data?.totalPages ?? 0);
+      setTotalElements(response.data?.totalElements ?? 0);
+      setCurrentPage(response.data?.currentPage ?? 0);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Failed to load coupons");
+      setCoupons([]);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCoupons(currentPage);
+  }, [currentPage]);
+
+  const handleDeleteCoupon = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await adminClient.delete(`/api/admin/super/coupons/${id}`);
+      toast.success("Coupon deleted");
+      await loadCoupons(currentPage);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Failed to delete coupon");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleCreateCoupon = async () => {
+    const email = assignToEmail.trim();
+    if (!email) {
+      toast.error("Enter the user's email");
+      return;
+    }
+    setCreating(true);
+    setLastCreated(null);
+    try {
+      const response = await adminClient.post("/api/admin/super/coupons", {
+        planName,
+        assignToEmail: email,
+      });
+      const data = response.data || {};
+      toast.success("Coupon created. Share the code with the user.");
+      setLastCreated({
+        code: data.code,
+        planName: data.planName || planName,
+        assignToEmail: data.assignToEmail || email,
+        expiresAt: data.expiresAt || "",
+      });
+      setAssignToEmail("");
+      setShowCouponModal(false);
+      setCurrentPage(0);
+      await loadCoupons(0);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Failed to create coupon";
+      toast.error(msg);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const openModal = () => {
+    setPlanName("BASIC");
+    setAssignToEmail("");
+    setLastCreated(null);
+    setShowCouponModal(true);
+  };
+
+  const statusBadge = (status: CouponItem["status"]) => {
+    const cls =
+      status === "active"
+        ? "bg-green-500/10 text-green-600 dark:text-green-400"
+        : status === "used"
+          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          : "bg-muted text-muted-foreground";
+    const label = status === "active" ? "Active" : status === "used" ? "Used" : "Expired";
+    return <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-xs font-medium", cls)}>{label}</span>;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Create coupons for Basic or Pro plans. One coupon per user, non-renewable.</p>
+        <button
+          onClick={openModal}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Create coupon
+        </button>
+      </div>
+
+      {/* Coupon creation modal */}
+      {showCouponModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowCouponModal(false)} />
+          <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 w-full space-y-5 animate-scale-in">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-foreground">Create coupon</h3>
+              <button onClick={() => setShowCouponModal(false)} className="p-1.5 rounded-lg hover:bg-chat-hover text-muted-foreground transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">One coupon per user. Non-renewable. Expires in 1 month. Assign to a user by email.</p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Plan</label>
+              <select
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value as "BASIC" | "PRO")}
+                className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
+              >
+                <option value="BASIC">Basic ($20 / 50 messages)</option>
+                <option value="PRO">Pro ($50 / 200 messages)</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Assign to user (email)</label>
+              <input
+                type="email"
+                value={assignToEmail}
+                onChange={(e) => setAssignToEmail(e.target.value)}
+                placeholder="user@company.com"
+                className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Coupon code expires in 1 month. After the user applies it, plan access lasts 1 month from apply date, then falls back to Free.</p>
+            <div className="flex gap-3 justify-end pt-2">
+              <button onClick={() => setShowCouponModal(false)} className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCoupon}
+                disabled={creating || !assignToEmail.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Create coupon
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {lastCreated && (
+        <div className="p-5 rounded-xl border border-primary/20 bg-primary/5 max-w-md space-y-2">
+          <h3 className="text-sm font-medium text-foreground">Last created coupon</h3>
+          <p className="text-xs text-muted-foreground">Share this code with the user. One-time use.</p>
+          <p className="text-sm font-mono font-medium text-foreground">{lastCreated.code}</p>
+          <p className="text-xs text-muted-foreground">
+            Plan: {lastCreated.planName} · Assigned to: {lastCreated.assignToEmail}
+          </p>
+          {lastCreated.expiresAt && (
+            <p className="text-xs text-muted-foreground">
+              Expires: {new Date(lastCreated.expiresAt).toLocaleString()}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* All coupons list */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <h3 className="text-sm font-medium text-foreground px-4 py-3 border-b border-border bg-muted/30">
+          All coupons
+          {totalElements > 0 && (
+            <span className="ml-2 text-muted-foreground font-normal">
+              ({totalElements} total · Page {currentPage + 1} of {totalPages || 1})
+            </span>
+          )}
+        </h3>
+        {loadingCoupons ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading coupons…</span>
+          </div>
+        ) : coupons.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-4 py-6">No coupons yet. Create one above.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/20">
+                    <th className="text-left font-medium text-foreground px-4 py-3">Code</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Plan</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Assigned to</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Status</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Expires</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Used at</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Created</th>
+                    <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {coupons.map((c) => (
+                    <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      <td className="px-4 py-3 font-mono text-foreground">{c.code}</td>
+                      <td className="px-4 py-3 text-foreground">{c.planName}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.assignToEmail ?? "—"}</td>
+                      <td className="px-4 py-3">{statusBadge(c.status)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.expiresAt ? new Date(c.expiresAt).toLocaleString() : "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.usedAt ? new Date(c.usedAt).toLocaleString() : "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleString() : "—"}</td>
+                      <td className="px-4 py-3 text-right">
+                        {c.status === "active" ? (
+                          <button
+                            onClick={() => handleDeleteCoupon(c.id)}
+                            disabled={deletingId === c.id}
+                            className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                            title="Delete coupon"
+                          >
+                            {deletingId === c.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                  disabled={currentPage === 0}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage + 1} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                  disabled={currentPage >= totalPages - 1}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface SuperAdminUser {
+  id: number;
+  email: string;
+  fullName?: string;
+  role: string;
+  tenantId: number | null;
+  tenantName: string | null;
+  messagesUsed?: number;
+  messagesLimit?: number;
+}
+
+interface SuperAdminUserDetail {
+  id: number;
+  email: string;
+  fullName?: string;
+  role: string;
+  tenantId: number | null;
+  tenantName: string | null;
+  planMessageLimit: number;
+  overriddenMessageLimit: number | null;
+  effectiveMessageLimit: number;
+  messagesUsed?: number;
+  messagesLimit?: number;
+}
+
+function SuperAdminUsersTab() {
+  const [users, setUsers] = useState<SuperAdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [userDetail, setUserDetail] = useState<SuperAdminUserDetail | null>(null);
+  const [overrideInput, setOverrideInput] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setLoading(true);
+    adminClient.get(`/api/admin/super/users?page=${currentPage}&size=${pageSize}`)
+      .then((r) => {
+        const data = r.data || {};
+        setUsers(data.content || []);
+        setTotalPages(data.totalPages ?? 0);
+        setTotalElements(data.totalElements ?? 0);
+      })
+      .catch(() => {
+        toast.error("Failed to load users");
+        setUsers([]);
+      })
+      .finally(() => setLoading(false));
+  }, [currentPage]);
+
+  useEffect(() => {
+    if (selectedUserId == null) {
+      setUserDetail(null);
+      setOverrideInput("");
+      return;
+    }
+    adminClient.get(`/api/admin/super/users/${selectedUserId}`).then((r) => {
+      const d = r.data;
+      setUserDetail(d);
+      setOverrideInput(d?.overriddenMessageLimit != null ? String(d.overriddenMessageLimit) : "");
+    }).catch(() => {
+      toast.error("Failed to load user details");
+      setUserDetail(null);
+    });
+  }, [selectedUserId]);
+
+  const handleSaveOverride = async () => {
+    if (selectedUserId == null) return;
+    setSaving(true);
+    try {
+      const value = overrideInput.trim() ? parseInt(overrideInput.trim(), 10) : null;
+      if (value != null && (isNaN(value) || value < 1)) {
+        toast.error("Enter a positive number or leave empty to remove override.");
+        setSaving(false);
+        return;
+      }
+      await adminClient.post(`/api/admin/super/users/${selectedUserId}/usage-limit`, {
+        monthlyMessageLimit: value ?? 0,
+      });
+      toast.success(value != null ? "Override saved." : "Override removed.");
+      const res = await adminClient.get(`/api/admin/super/users/${selectedUserId}`);
+      setUserDetail(res.data);
+      setOverrideInput(res.data?.overriddenMessageLimit != null ? String(res.data.overriddenMessageLimit) : "");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Failed to save override");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-border overflow-hidden">
+        <h3 className="text-sm font-medium text-foreground px-4 py-3 border-b border-border bg-muted/30">All users</h3>
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading…</span>
+          </div>
+        ) : users.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-4 py-6">No users.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/20">
+                  <th className="text-left font-medium text-foreground px-4 py-3">Email</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Name</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Role</th>
+                  <th className="text-left font-medium text-foreground px-4 py-3">Tenant</th>
+                  <th className="text-right font-medium text-foreground px-4 py-3">Usage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => {
+                  const used = u.messagesUsed ?? 0;
+                  const limit = u.messagesLimit ?? 500;
+                  return (
+                  <tr
+                    key={u.id}
+                    onClick={() => setSelectedUserId(u.id)}
+                    className={cn(
+                      "border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer",
+                      selectedUserId === u.id && "bg-primary/5"
+                    )}
+                  >
+                    <td className="px-4 py-3 text-foreground">{u.email}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{u.fullName ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{u.role}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{u.tenantName ?? "—"}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap">
+                      {used.toLocaleString()} / {limit.toLocaleString()}
+                    </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center px-4 py-3 border-t border-border bg-muted/10">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              className="flex gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </button>
+            <span className="text-sm text-muted-foreground">
+              Page {currentPage + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage >= totalPages - 1}
+              className="flex gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {userDetail && (
+        <div className="rounded-xl border border-border p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-foreground">User: {userDetail.email}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Messages used this month</p>
+              <p className="font-medium text-foreground">
+                {(userDetail.messagesUsed ?? 0).toLocaleString()} / {(userDetail.messagesLimit ?? userDetail.effectiveMessageLimit ?? 500).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Plan default message limit</p>
+              <p className="font-medium text-foreground">{userDetail.planMessageLimit}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Effective message limit</p>
+              <p className="font-medium text-foreground">{userDetail.effectiveMessageLimit}</p>
+            </div>
+          </div>
+          <div className="border-t border-border pt-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2">User-specific override</p>
+            <p className="text-xs text-muted-foreground mb-2">Override monthly message limit for this user only. Does not change billing.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                value={overrideInput}
+                onChange={(e) => setOverrideInput(e.target.value)}
+                placeholder="Leave empty to use plan default"
+                className="w-40 px-3 py-2 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
+              />
+              <button
+                onClick={handleSaveOverride}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

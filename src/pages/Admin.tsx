@@ -17,13 +17,14 @@ import {
   Info,
   FileText,
   Upload,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {  PrivacyBadge } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 
-type Tab = "users" | "billing";
+type Tab = "users" | "billing" | "transactions";
 
 interface User {
   id: string | null;
@@ -95,7 +96,10 @@ export default function AdminPage() {
   const tabs = [
     { id: "users" as Tab, label: "Users", icon: Users },
     ...(hasAdminAccess
-      ? [{ id: "billing" as Tab, label: "Billing", icon: CreditCard }]
+      ? [
+          { id: "billing" as Tab, label: "Billing", icon: CreditCard },
+          { id: "transactions" as Tab, label: "Transaction History", icon: Receipt },
+        ]
       : []),
   ];
 
@@ -152,6 +156,7 @@ export default function AdminPage() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         {activeTab === "users" && <UsersTab />}
         {activeTab === "billing" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <BillingTab />}
+        {activeTab === "transactions" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <TransactionHistoryTab />}
       </main>
     </div>
   );
@@ -165,6 +170,13 @@ function UsersTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "employee">("employee");
   const [isInviting, setIsInviting] = useState(false);
+  const [proratedPreview, setProratedPreview] = useState<{
+    applicable: boolean;
+    currentSeats?: number;
+    newSeats?: number;
+    estimatedProratedCents?: number;
+    nextCycleTotalCents?: number;
+  } | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
@@ -177,6 +189,16 @@ function UsersTab() {
   useEffect(() => {
     loadUsers(currentPage);
   }, [tenantId, currentPage]);
+
+  useEffect(() => {
+    if (showInviteDialog) {
+      adminClient.get("/api/subscription/prorated-preview").then((r) => {
+        setProratedPreview(r.data);
+      }).catch(() => setProratedPreview(null));
+    } else {
+      setProratedPreview(null);
+    }
+  }, [showInviteDialog]);
 
   const loadUsers = async (page: number = 0) => {
     try {
@@ -545,6 +567,19 @@ function UsersTab() {
                   </button>
                 </div>
               </div>
+              {proratedPreview?.applicable && proratedPreview.estimatedProratedCents != null && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                  <p className="text-xs font-medium text-foreground">Billing impact (per-user plan)</p>
+                  <p className="text-xs text-muted-foreground">
+                    Adding this user will charge approximately ${(proratedPreview.estimatedProratedCents / 100).toFixed(2)} prorated for the rest of the cycle.
+                  </p>
+                  {proratedPreview.nextCycleTotalCents != null && (
+                    <p className="text-xs text-muted-foreground">
+                      Next cycle: ${(proratedPreview.nextCycleTotalCents / 100).toFixed(2)}/month total ({proratedPreview.newSeats} users).
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex gap-3 justify-end pt-2">
               <button
@@ -603,6 +638,116 @@ function UsersTab() {
   );
 }
 
+function TransactionHistoryTab() {
+  const [transactions, setTransactions] = useState<Array<{
+    type: string;
+    date: string;
+    description: string;
+    amountCents: number;
+    currency?: string;
+    status?: string;
+    newQuantity?: number;
+  }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      const res = await adminClient.get("/api/subscription/transaction-history");
+      setTransactions(res.data?.transactions ?? []);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.message ?? "Failed to load transaction history");
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+        <p className="text-sm text-muted-foreground mt-2">Loading transactions...</p>
+      </div>
+    );
+  }
+
+  if (transactions.length === 0) {
+    return (
+      <div className="text-center py-16 space-y-4">
+        <div className="mx-auto w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+          <Receipt className="h-7 w-7 text-muted-foreground/50" />
+        </div>
+        <div>
+          <p className="text-foreground font-medium">No transactions yet</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Plan purchases and prorated charges (when users are added) will appear here
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 rounded-xl bg-card border border-border">
+        <h3 className="text-base font-semibold text-foreground mb-1">Transaction History</h3>
+        <p className="text-sm text-muted-foreground">
+          Monthly billing events: plan purchases, recurring payments, and prorated charges when users are added.
+        </p>
+      </div>
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/20">
+                <th className="text-left font-medium text-foreground px-4 py-3">Date</th>
+                <th className="text-left font-medium text-foreground px-4 py-3">Description</th>
+                <th className="text-right font-medium text-foreground px-4 py-3">Amount</th>
+                <th className="text-left font-medium text-foreground px-4 py-3">Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((t, i) => (
+                <tr key={i} className="border-b border-border last:border-0 hover:bg-muted/20">
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {new Date(t.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                  <td className="px-4 py-3 text-foreground">{t.description}</td>
+                  <td className="px-4 py-3 text-right font-medium text-foreground">
+                    ${(t.amountCents / 100).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                        t.type === "payment"
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      )}
+                    >
+                      {t.type === "payment" ? "Payment" : "Prorated"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BillingTab() {
   const [searchParams] = useSearchParams();
