@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from
 import { useEffect } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ChatProvider } from "@/contexts/ChatContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -67,9 +68,10 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <ChatProvider>
-            <Routes>
+        <ThemeProvider>
+          <AuthProvider>
+            <ChatProvider>
+              <Routes>
           {/* Handle /index.html from Render redirects */}
           <Route path="/index.html" element={<IndexHtmlHandler />} />
           
@@ -136,6 +138,7 @@ const App = () => (
             </Routes>
           </ChatProvider>
         </AuthProvider>
+        </ThemeProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

@@ -779,7 +779,7 @@ export default function SettingsPage() {
                         ? "bg-destructive"
                         : usageData.percentUsed >= 80
                         ? "bg-yellow-500"
-                        : "bg-primary"
+                        : "progress-gradient-fill"
                     )}
                     style={{ width: `${Math.min(usageData.percentUsed, 100)}%` }}
                   />

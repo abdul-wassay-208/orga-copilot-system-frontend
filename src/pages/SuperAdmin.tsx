@@ -21,6 +21,7 @@ import {
   Lock,
   ChevronLeft,
 } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -182,6 +183,7 @@ export default function SuperAdminPage() {
 }
 
 function TenantsTab() {
+  const { theme } = useTheme();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -354,8 +356,12 @@ function TenantsTab() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border border-border bg-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-primary" />
+            <div className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden">
+              <img
+                src={theme === "dark" ? "/assets/Tenants.svg" : "/assets/Tenants-dark.svg"}
+                alt="Total Tenants"
+                className="h-14 w-14 object-contain"
+              />
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">{metrics.totalTenants || tenants.length}</p>
@@ -365,8 +371,12 @@ function TenantsTab() {
         </div>
         <div className="p-4 rounded-xl border border-border bg-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <div className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden">
+              <img
+                src={theme === "dark" ? "/assets/Active.svg" : "/assets/Active-Light.svg"}
+                alt="Active"
+                className="h-14 w-14 object-contain"
+              />
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">
@@ -378,8 +388,12 @@ function TenantsTab() {
         </div>
         <div className="p-4 rounded-xl border border-border bg-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-              <Users className="h-5 w-5 text-muted-foreground" />
+            <div className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden">
+              <img
+                src={theme === "dark" ? "/assets/Total-users.svg" : "/assets/Total-users-dark.svg"}
+                alt="Total Users"
+                className="h-14 w-14 object-contain"
+              />
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">
@@ -391,8 +405,12 @@ function TenantsTab() {
         </div>
         <div className="p-4 rounded-xl border border-border bg-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            <div className="w-20 h-20 rounded-lg  flex items-center justify-center overflow-hidden">
+              <img
+                src={theme === "dark" ? "/assets/Start-chat.svg" : "/assets/Start-chat-dark.svg"}
+                alt="Messages Used"
+                className="h-14 w-14 object-contain"
+              />
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">
@@ -513,7 +531,7 @@ function TenantsTab() {
                   <div
                     className={cn(
                       "h-full rounded-full",
-                      limit > 0 && (used / limit) > 0.9 ? "bg-destructive" : "bg-primary/60"
+                      limit > 0 && (used / limit) > 0.9 ? "bg-destructive" : "progress-gradient-fill"
                     )}
                     style={{ width: `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
                   />
@@ -808,7 +826,7 @@ function UsageOverviewTab() {
                   className={cn(
                     "h-full rounded-full",
                     (tenant.usage / tenant.limit) > 0.9 ? "bg-destructive" :
-                    (tenant.usage / tenant.limit) > 0.75 ? "bg-yellow-500" : "bg-primary"
+                    (tenant.usage / tenant.limit) > 0.75 ? "bg-yellow-500" : "progress-gradient-fill"
                   )}
                   style={{ width: `${(tenant.usage / tenant.limit) * 100}%` }}
                 />

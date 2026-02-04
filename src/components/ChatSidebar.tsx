@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Conversation } from "@/types/chat";
 import { ThemeToggle } from "./ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { adminClient } from "@/lib/api-client";
 
@@ -31,6 +32,7 @@ export function ChatSidebar({
   isTenantAdmin = false,
   isSuperAdmin = false,
 }: ChatSidebarProps) {
+  const { theme } = useTheme();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -96,7 +98,11 @@ export function ChatSidebar({
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/assets/evo-logo.svg" alt="Evo Associate" className="h-11 w-200 object-contain flex-shrink-0" />
+            <img
+              src={theme === "dark" ? "/assets/evo-logo.svg" : "/assets/evo-logo-dark.svg"}
+              alt="Evo Associate"
+              className="h-11 w-200 object-contain flex-shrink-0"
+            />
           </div>
           <button
             onClick={onToggleCollapse}

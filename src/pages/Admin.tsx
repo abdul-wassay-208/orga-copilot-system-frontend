@@ -20,6 +20,7 @@ import {
   Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/useTheme";
 import {  PrivacyBadge } from "@/components/UsageLimitStates";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -163,6 +164,7 @@ export default function AdminPage() {
 }
 
 function UsersTab() {
+  const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
@@ -325,8 +327,12 @@ function UsersTab() {
       <div className="p-4 rounded-xl bg-card border border-border">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Users className="h-5 w-5 text-primary" />
+            <div className="w-20 h-20 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img
+                src={theme === "dark" ? "/assets/Invite-user.svg" : "/assets/Invite-user-dark.svg"}
+                alt="Invite user"
+                className="h-14 w-14 object-contain"
+              />
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">{activeUsersCount}</p>
@@ -377,7 +383,7 @@ function UsersTab() {
                   <span>{user.messagesUsed} / {user.messagesLimit}</span>
                   <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div 
-                      className="h-full rounded-full bg-primary/60" 
+                      className="h-full rounded-full progress-gradient-fill" 
                       style={{ width: `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
                     />
                   </div>
@@ -639,6 +645,7 @@ function UsersTab() {
 }
 
 function TransactionHistoryTab() {
+  const { theme } = useTheme();
   const [transactions, setTransactions] = useState<Array<{
     type: string;
     date: string;
@@ -679,8 +686,12 @@ function TransactionHistoryTab() {
   if (transactions.length === 0) {
     return (
       <div className="text-center py-16 space-y-4">
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
-          <Receipt className="h-7 w-7 text-muted-foreground/50" />
+        <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden">
+          <img
+            src={theme === "dark" ? "/assets/Transaction%20history.svg" : "/assets/Transaction%20history-Light.svg"}
+            alt="Transaction history"
+            className="h-14 w-14 object-contain"
+          />
         </div>
         <div>
           <p className="text-foreground font-medium">No transactions yet</p>
@@ -992,7 +1003,7 @@ function BillingTab() {
           <div
             className={cn(
               "h-full rounded-full transition-all",
-              usagePercent > 90 ? "bg-destructive" : usagePercent > 75 ? "bg-yellow-500" : "bg-primary"
+              usagePercent > 90 ? "bg-destructive" : usagePercent > 75 ? "bg-yellow-500" : "progress-gradient-fill"
             )}
             style={{ width: `${usagePercent}%` }}
           />

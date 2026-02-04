@@ -1,4 +1,5 @@
-import { MessageCircle, Lock, Sparkles } from "lucide-react";
+import { Lock, Sparkles } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
@@ -15,12 +16,17 @@ const examplePrompts = [
 ];
 
 export function EmptyState({ onSelectPrompt, disabled = false, showPrompts = false }: EmptyStateProps) {
+  const { theme } = useTheme();
   return (
     <div className="flex-1 flex flex-col items-center justify-start px-4 py-4 md:py-8 lg:py-12 overflow-y-auto min-h-0">
       <div className="max-w-xl w-full text-center space-y-6 md:space-y-8 py-4 md:py-8">
         {/* Icon */}
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center animate-scale-in">
-          <MessageCircle className="h-8 w-8 text-primary" />
+        <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center animate-scale-in overflow-hidden">
+          <img
+            src={theme === "dark" ? "/assets/Start-chat.svg" : "/assets/Start-chat-dark.svg"}
+            alt="Start chat"
+            className="h-20 w-800 object-contain"
+          />
         </div>
 
         {/* Welcome message */}

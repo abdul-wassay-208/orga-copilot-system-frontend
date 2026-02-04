@@ -6,6 +6,7 @@
 
 @layer base {
   :root {
+
     /* Brand: Dark #221F20, Light #FFFFFF */
     --brand-dark: #221F20;
     --brand-light: #FFFFFF;
@@ -41,6 +42,9 @@
 
     --radius: 0.5rem;
 
+    /* Progress bar gradient: FEBE40 18% → E40B7B 100% */
+    --progress-gradient: linear-gradient(to right, #FEBE40 18%, #E40B7B 100%);
+
     /* Chat-specific tokens */
     --chat-user-bg: 0 0% 96%;
     --chat-assistant-bg: 0 0% 99%;
@@ -70,6 +74,7 @@
 
   .dark {
     /* Dark theme: #221F20 background, #FFFFFF text */
+    --progress-gradient: linear-gradient(to right, #FEBE40 18%, #E40B7B 100%);
     --background: 0 0% 13%;
     --foreground: 0 0% 100%;
 
@@ -174,5 +179,10 @@
   /* Subtle focus ring */
   .focus-subtle {
     @apply outline-none ring-1 ring-ring/30 ring-offset-2 ring-offset-background;
+  }
+
+  /* Progress bar fill gradient (FEBE40 18% → E40B7B 100%) */
+  .progress-gradient-fill {
+    background: var(--progress-gradient);
   }
 }
