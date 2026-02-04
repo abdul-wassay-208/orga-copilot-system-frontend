@@ -252,7 +252,7 @@ export function ChatLayout() {
 
     try {
       await chatClient.delete(`/chat/conversations/${deleteConversationId}`);
-      setConversations((prev) => prev.filter((c) => c.id !== deleteConversationId));
+      setConversations((prev) => prev.filter((c) => String(c.id) !== String(deleteConversationId)));
       if (activeConversationId === deleteConversationId) {
         setActiveConversationId(null);
       }
@@ -1188,13 +1188,19 @@ export function ChatLayout() {
         </div>
       )}
 
-      {/* 90% usage alert */}
+      {/* 90% / 100% usage alert */}
       {showUsage90Alert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowUsage90Alert(false)} />
           <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4">
-            <p className="text-sm font-medium text-foreground">Approaching your message limit</p>
-            <p className="text-sm text-muted-foreground">You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption.</p>
+            <p className="text-sm font-medium text-foreground">
+              {usageData?.percentUsed >= 100 ? "Message limit reached" : "Approaching your message limit"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {usageData?.percentUsed >= 100
+                ? "You've reached 100% of your plan's message limit. Consider upgrading to avoid interruption."
+                : "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption."}
+            </p>
             <div className="flex gap-2">
               <Link to="/settings" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
               <button onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Dismiss</button>

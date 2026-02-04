@@ -167,6 +167,7 @@ function UsersTab() {
   const { theme } = useTheme();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -191,6 +192,12 @@ function UsersTab() {
   useEffect(() => {
     loadUsers(currentPage);
   }, [tenantId, currentPage]);
+
+  useEffect(() => {
+    adminClient.get("/api/auth/me").then((r) => {
+      if (r.data?.email) setCurrentUserEmail(r.data.email);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (showInviteDialog) {
@@ -423,7 +430,7 @@ function UsersTab() {
                       Resend invite
                     </button>
                   )}
-                  {user.id && (
+                  {user.id && user.email !== currentUserEmail && (
                     <button
                       onClick={() => setShowRemoveConfirm(user.id!)}
                       className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
@@ -548,30 +555,7 @@ function UsersTab() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Role</label>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setInviteRole("employee")}
-                    className={cn(
-                      "flex-1 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
-                      inviteRole === "employee"
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-chat-input-border text-muted-foreground hover:border-chat-input-focus"
-                    )}
-                  >
-                    Employee
-                  </button>
-                  <button
-                    onClick={() => setInviteRole("admin")}
-                    className={cn(
-                      "flex-1 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all",
-                      inviteRole === "admin"
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-chat-input-border text-muted-foreground hover:border-chat-input-focus"
-                    )}
-                  >
-                    Admin
-                  </button>
-                </div>
+                <p className="text-xs text-muted-foreground">Invited users are added as Employees.</p>
               </div>
               {proratedPreview?.applicable && proratedPreview.estimatedProratedCents != null && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
@@ -821,38 +805,41 @@ function BillingTab() {
     
     try {
       setLoading(true);
-      const [statusResponse, metricsResponse, meResponse] = await Promise.allSettled([
+      const [statusResponse, metricsResponse, meResponse, usageResponse] = await Promise.allSettled([
         adminClient.get("/api/subscription/status"),
         adminClient.get("/api/admin/tenant/usage/metrics"),
         adminClient.get("/api/auth/me"),
+        adminClient.get("/chat/usage"), // Per-user usage so each user (including admin) sees their own
       ]);
       
       const status = statusResponse.status === 'fulfilled' ? statusResponse.value.data : null;
       const metrics = metricsResponse.status === 'fulfilled' ? metricsResponse.value.data : {};
       const me = meResponse.status === 'fulfilled' ? meResponse.value.data : {};
+      const usage = usageResponse.status === 'fulfilled' ? usageResponse.value.data : null;
+      
+      const plan = status?.plan || {};
+      // Prefer per-user usage for display so each user sees their own limit, not org total
+      const displayUsage = usage
+        ? { current: usage.messagesUsed ?? 0, limit: usage.messagesLimit ?? 0 }
+        : { current: metrics.messagesThisMonth ?? 0, limit: metrics.maxMessagesPerMonth ?? plan.maxMessagesPerMonth ?? 0 };
       
       if (status && status.hasSubscription) {
-        const plan = status.plan || {};
+        const planObj = status.plan || {};
         const subscriptionStatus = status.status?.toLowerCase() || "active";
-        // For FREE plan, show as "active" with monthly billing periods
-        const isFreePlan = subscriptionStatus === "free" || plan.name === "FREE";
+        const isFreePlan = subscriptionStatus === "free" || planObj.name === "FREE";
         setSubscription({
           organizationName: me.tenantName || status.organizationName || "Organization",
-          plan: plan.displayName || plan.name || "Free Plan",
-          pricePerUser: plan.isPerUser ? plan.price || 0 : 0,
-          planPrice: plan.isPerUser ? 0 : (plan.price || 0), // Fixed price for non-per-user plans
+          plan: planObj.displayName || planObj.name || "Free Plan",
+          pricePerUser: planObj.isPerUser ? planObj.price || 0 : 0,
+          planPrice: planObj.isPerUser ? 0 : (planObj.price || 0),
           activeUsers: metrics.currentUsers || 0,
           status: isFreePlan ? "active" : subscriptionStatus,
           renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           graceDaysRemaining: 0,
           coupon: null,
-          usage: {
-            current: metrics.messagesThisMonth || 0,
-            limit: plan.maxMessagesPerMonth || metrics.maxMessagesPerMonth || 0,
-          },
+          usage: displayUsage,
         });
       } else {
-        // No subscription - default to FREE
         setSubscription({
           organizationName: me.tenantName || "Organization",
           plan: "Free Plan",
@@ -860,13 +847,10 @@ function BillingTab() {
           planPrice: 0,
           activeUsers: metrics.currentUsers || 0,
           status: "active",
-          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Monthly billing period for free plan
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           graceDaysRemaining: 0,
           coupon: null,
-          usage: {
-            current: metrics.messagesThisMonth || 0,
-            limit: metrics.maxMessagesPerMonth || 500,
-          },
+          usage: displayUsage,
         });
       }
     } catch (error: any) {
@@ -1003,18 +987,18 @@ function BillingTab() {
           <div
             className={cn(
               "h-full rounded-full transition-all",
-              usagePercent > 90 ? "bg-destructive" : usagePercent > 75 ? "bg-yellow-500" : "progress-gradient-fill"
+              usagePercent >= 100 ? "bg-destructive" : usagePercent > 90 ? "bg-destructive" : usagePercent > 75 ? "bg-yellow-500" : "progress-gradient-fill"
             )}
-            style={{ width: `${usagePercent}%` }}
+            style={{ width: `${Math.min(usagePercent, 100)}%` }}
           />
         </div>
         {usagePercent > 75 && (
           <p className={cn(
             "text-xs flex items-center gap-1.5",
-            usagePercent > 90 ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"
+            usagePercent >= 100 ? "text-destructive" : usagePercent > 90 ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"
           )}>
             <AlertTriangle className="h-3.5 w-3.5" />
-            {usagePercent > 90 ? "Approaching limit" : "You're approaching your monthly usage limit"}
+            {usagePercent >= 100 ? "Limit reached" : usagePercent > 90 ? "Approaching limit" : "You're approaching your monthly usage limit"}
           </p>
         )}
       </div>
