@@ -369,7 +369,7 @@ export default function SettingsPage() {
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     className={cn(
-                      "w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors text-foreground dark:text-black",
+                      "w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors text-muted-foreground",
                       nameError
                         ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20"
                         : saveSuccess
