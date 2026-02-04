@@ -99,7 +99,7 @@ export function ChatSidebar({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img
-              src={theme === "dark" ? "/assets/evo-logo.svg" : "/assets/evo-logo-dark.svg"}
+              src={theme === "dark" ? "/assets/evo-logo-dark.svg" : "/assets/evo-logo.svg"}
               alt="Evo Associate"
               className="h-11 w-200 object-contain flex-shrink-0"
             />
