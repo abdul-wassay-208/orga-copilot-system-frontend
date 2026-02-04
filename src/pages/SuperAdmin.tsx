@@ -1005,7 +1005,7 @@ function CouponsTab() {
                 onChange={(e) => setPlanName(e.target.value as "BASIC" | "PRO")}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
               >
-                <option value="BASIC">Basic ($20 / 50 messages)</option>
+                <option value="BASIC">Basic ($1 / 10 messages)</option>
                 <option value="PRO">Pro ($50 / 200 messages)</option>
               </select>
             </div>
