@@ -1189,7 +1189,7 @@ function SuperAdminUsersTab() {
   const pageSize = 10;
 
   useEffect(() => {
-    const t = setTimeout(() => setSearchParam(searchQuery), 350);
+    const t = setTimeout(() => setSearchParam(searchQuery), 500);
     return () => clearTimeout(t);
   }, [searchQuery]);
 

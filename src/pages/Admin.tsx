@@ -193,7 +193,7 @@ function UsersTab() {
   const tenantId = searchParams.get("tenant");
 
   useEffect(() => {
-    const t = setTimeout(() => setSearchParam(searchQuery), 350);
+    const t = setTimeout(() => setSearchParam(searchQuery), 500);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
@@ -314,39 +314,6 @@ function UsersTab() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="text-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-        <p className="text-sm text-muted-foreground mt-2">Loading users...</p>
-      </div>
-    );
-  }
-
-  if (users.length === 0) {
-    return (
-      <div className="text-center py-16 space-y-4">
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
-          <Users className="h-7 w-7 text-muted-foreground/50" />
-        </div>
-        <div>
-          <p className="text-foreground font-medium">No users added yet</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isFreePlan ? "Upgrade to Basic or Pro to invite team members." : "Invite team members to get started"}
-          </p>
-        </div>
-        <button
-          onClick={() => !isFreePlan && setShowInviteDialog(true)}
-          disabled={isFreePlan}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <UserPlus className="h-4 w-4" />
-          Invite your first user
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {/* Active Users Count & Billing Note */}
@@ -405,7 +372,33 @@ function UsersTab() {
 
       {/* Users list */}
       <div className="border border-border rounded-xl divide-y divide-border overflow-visible">
-        {users.map((user) => (
+        {loading ? (
+          <div className="text-center py-12 px-4">
+            <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+            <p className="text-sm text-muted-foreground mt-2">Loading users...</p>
+          </div>
+        ) : users.length === 0 ? (
+          searchParam.trim() ? (
+            <div className="text-center py-10 px-4 text-muted-foreground text-sm">
+              No users match your search.
+            </div>
+          ) : (
+            <div className="text-center py-10 px-4 space-y-3">
+              <p className="text-foreground font-medium">No users added yet</p>
+              <p className="text-sm text-muted-foreground">
+                {isFreePlan ? "Upgrade to Basic or Pro to invite team members." : "Invite team members to get started"}
+              </p>
+              <button
+                onClick={() => !isFreePlan && setShowInviteDialog(true)}
+                disabled={isFreePlan}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <UserPlus className="h-4 w-4" />
+                Invite your first user
+              </button>
+            </div>
+          )
+        ) : users.map((user) => (
           <div key={user.id || user.email} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
