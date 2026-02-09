@@ -85,9 +85,6 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
     if (plan.name === "ENTERPRISE") return [];
     const features: string[] = [];
     features.push(`${plan.maxMessagesPerMonth.toLocaleString()} messages per month`);
-    if (plan.maxUsers != null && plan.maxUsers > 0) {
-      features.push(`Up to ${plan.maxUsers} users`);
-    }
     if (plan.name === "PRO") {
       features.push("Content, videos, training resources");
       features.push("1 AMA webinar per month");
