@@ -69,7 +69,8 @@ export default function ManageSubscriptionPage() {
   const [searchParams] = useSearchParams();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [checkingRole, setCheckingRole] = useState(true);
-  
+  const redirectedNonAdmin = useRef(false);
+
   useEffect(() => {
     checkAccess();
   }, []);
@@ -80,20 +81,25 @@ export default function ManageSubscriptionPage() {
       const role = response.data?.role;
       setUserRole(role);
       
-      // Only allow TENANT_ADMIN or SUPER_ADMIN to access billing
-      // Employees should be redirected
       if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
-        toast.error("Access denied. Billing is only available to administrators.");
-        navigate("/chat", { replace: true });
+        if (!redirectedNonAdmin.current) {
+          redirectedNonAdmin.current = true;
+          toast.error("Billing is managed by your organization's administrator. Please contact them for payment or subscription questions.");
+          navigate("/chat", { replace: true });
+        }
         return;
       }
     } catch (error: any) {
       console.error("Failed to verify access:", error);
       if (error?.response?.status === 401 || error?.response?.status === 403) {
-        toast.error("Please log in to continue.");
-        navigate("/login", { replace: true });
-      } else {
-        toast.error("Access denied. Billing is only available to administrators.");
+        if (!redirectedNonAdmin.current) {
+          redirectedNonAdmin.current = true;
+          toast.error("Please log in to continue.");
+          navigate("/login", { replace: true });
+        }
+      } else if (!redirectedNonAdmin.current) {
+        redirectedNonAdmin.current = true;
+        toast.error("Billing is managed by your organization's administrator.");
         navigate("/chat", { replace: true });
       }
     } finally {
@@ -389,6 +395,14 @@ export default function ManageSubscriptionPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {/* Single, persistent message for admin when payment failed — no repeated toasts or reloads */}
+        {subscription.status === "past_due" && (
+          <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-800 dark:text-red-200">
+            <p className="text-sm font-medium">Your last payment failed. Please update your payment method to avoid service interruption.</p>
+            <Link to="/billing/payment-method" className="text-sm font-medium underline mt-2 inline-block">Update payment method</Link>
+          </div>
+        )}
+
         {/* Subscription Plans - Only show when user wants to change plan */}
         {showPlans && (
           <div className="space-y-4">

@@ -62,17 +62,6 @@ export function ShareConversationModal({
     }
   };
 
-  const handleRevoke = async () => {
-    try {
-      await chatClient.delete(`/chat/conversations/${conversationId}/share`);
-      setShareUrl("");
-      toast.success("Share link revoked");
-    } catch (error: any) {
-      console.error("Failed to revoke share link:", error);
-      toast.error("Failed to revoke share link. Please try again.");
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -128,30 +117,22 @@ export function ShareConversationModal({
                 </button>
               </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCopy}
-                  className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      Copy Link
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleRevoke}
-                  className="px-4 py-2 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors"
-                >
-                  Revoke
-                </button>
-              </div>
+              <button
+                onClick={handleCopy}
+                className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copy Link
+                  </>
+                )}
+              </button>
 
               <a
                 href={shareUrl}

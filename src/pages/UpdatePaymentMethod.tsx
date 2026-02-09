@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Loader2, Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ export default function UpdatePaymentMethodPage() {
   const [checkingRole, setCheckingRole] = useState(true);
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const redirectedNonAdmin = useRef(false);
 
   useEffect(() => {
     checkAccess();
@@ -24,20 +25,25 @@ export default function UpdatePaymentMethodPage() {
       const role = response.data?.role;
       setUserRole(role);
       
-      // Only allow TENANT_ADMIN or SUPER_ADMIN to access payment method page
-      // Employees should be redirected
       if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
-        toast.error("Access denied. Billing is only available to administrators.");
-        navigate("/chat", { replace: true });
+        if (!redirectedNonAdmin.current) {
+          redirectedNonAdmin.current = true;
+          toast.error("Billing is managed by your organization's administrator.");
+          navigate("/chat", { replace: true });
+        }
         return;
       }
     } catch (error: any) {
       console.error("Failed to verify access:", error);
       if (error?.response?.status === 401 || error?.response?.status === 403) {
-        toast.error("Please log in to continue.");
-        navigate("/login", { replace: true });
-      } else {
-        toast.error("Access denied. Billing is only available to administrators.");
+        if (!redirectedNonAdmin.current) {
+          redirectedNonAdmin.current = true;
+          toast.error("Please log in to continue.");
+          navigate("/login", { replace: true });
+        }
+      } else if (!redirectedNonAdmin.current) {
+        redirectedNonAdmin.current = true;
+        toast.error("Billing is managed by your organization's administrator.");
         navigate("/chat", { replace: true });
       }
     } finally {

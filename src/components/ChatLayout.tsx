@@ -51,6 +51,7 @@ export function ChatLayout() {
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const usageDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastErrorToastRef = useRef<{ message: string; at: number } | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -828,9 +829,22 @@ export function ChatLayout() {
       const status = error?.response?.status;
       const data = error?.response?.data || {};
       const errorMessage = data.message || "Something went wrong.";
+      const now = Date.now();
+      const showToast = (msg: string) => {
+        const last = lastErrorToastRef.current;
+        if (last && last.message === msg && now - last.at < 10000) return;
+        lastErrorToastRef.current = { message: msg, at: now };
+        toast.error(msg);
+      };
       if (status === 403) {
-        toast.error(errorMessage || "Free plan users cannot send messages. Please upgrade your plan.");
-        loadUsageData();
+        const msg = (data.message || "").toLowerCase();
+        const isBillingOrTenant = msg.includes("tenant") || msg.includes("inactive") || msg.includes("payment") || msg.includes("billing");
+        showToast(
+          isBillingOrTenant
+            ? "Your organization's payment needs attention. Please ask your administrator to update the payment method in Billing."
+            : (errorMessage || "You don't have access to send messages. Please contact your administrator.")
+        );
+        // Do not call loadUsageData() on 403 to avoid repeated reload/flicker
       } else if (status === 429) {
         if (data.conversationLimitReached) {
           setShowConversationLimitReached(true);

@@ -71,9 +71,13 @@ export function ProtectedRoute({ children, allowedRoles, requireSubscription = f
     return <Navigate to="/chat" replace />;
   }
 
-  // Check subscription for chat routes
+  // Check subscription for chat routes. Only admins are sent to billing; employees stay on chat to avoid redirect loop and repeated "access denied".
   if (requireSubscription && subscriptionValid === false) {
-    return <Navigate to="/billing" replace />;
+    const isBillingAdmin = user?.role === "TENANT_ADMIN" || user?.role === "SUPER_ADMIN";
+    if (isBillingAdmin) {
+      return <Navigate to="/billing" replace />;
+    }
+    // Employee: do not redirect to billing (they would see "access denied" and loop). Let them stay on chat.
   }
 
   return children;

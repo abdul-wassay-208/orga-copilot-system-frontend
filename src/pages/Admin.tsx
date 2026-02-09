@@ -927,6 +927,14 @@ function BillingTab() {
 
   return (
     <div className="space-y-6">
+      {/* Single message for admin when payment failed — no repeated toasts or reloads */}
+      {subscription.status === "past_due" && (
+        <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-800 dark:text-red-200">
+          <p className="text-sm font-medium">Your last payment failed. Please update your payment method to avoid service interruption.</p>
+          <Link to="/billing/payment-method" className="text-sm font-medium underline mt-2 inline-block">Update payment method</Link>
+        </div>
+      )}
+
       {/* Subscription Card */}
       <div className="p-5 rounded-xl border border-border bg-card space-y-5">
         <div className="flex items-start justify-between">
