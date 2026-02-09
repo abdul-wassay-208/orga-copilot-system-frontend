@@ -173,6 +173,7 @@ function UsersTab() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "employee">("employee");
   const [isInviting, setIsInviting] = useState(false);
+  const [isFreePlan, setIsFreePlan] = useState(false);
   const [proratedPreview, setProratedPreview] = useState<{
     applicable: boolean;
     currentSeats?: number;
@@ -183,6 +184,8 @@ function UsersTab() {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParam, setSearchParam] = useState("");
   const pageSize = 10;
   
   // Get tenant ID from URL query parameter (for super admin viewing specific tenant)
@@ -190,13 +193,25 @@ function UsersTab() {
   const tenantId = searchParams.get("tenant");
 
   useEffect(() => {
+    const t = setTimeout(() => setSearchParam(searchQuery), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
     loadUsers(currentPage);
-  }, [tenantId, currentPage]);
+  }, [tenantId, currentPage, searchParam]);
 
   useEffect(() => {
     adminClient.get("/api/auth/me").then((r) => {
       if (r.data?.email) setCurrentUserEmail(r.data.email);
     }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    adminClient.get("/api/subscription/status").then((r) => {
+      const planName = r.data?.plan?.name;
+      setIsFreePlan(planName === "FREE");
+    }).catch(() => setIsFreePlan(false));
   }, []);
 
   useEffect(() => {
@@ -212,9 +227,10 @@ function UsersTab() {
   const loadUsers = async (page: number = 0) => {
     try {
       setLoading(true);
+      const searchSegment = searchParam.trim() ? `&search=${encodeURIComponent(searchParam.trim())}` : "";
       const url = tenantId 
-        ? `/api/admin/tenant/users?tenantId=${tenantId}&page=${page}&size=${pageSize}`
-        : `/api/admin/tenant/users?page=${page}&size=${pageSize}`;
+        ? `/api/admin/tenant/users?tenantId=${tenantId}&page=${page}&size=${pageSize}${searchSegment}`
+        : `/api/admin/tenant/users?page=${page}&size=${pageSize}${searchSegment}`;
       const response = await adminClient.get(url);
       const responseData = response.data || {};
       const backendUsers = responseData.content || [];
@@ -315,11 +331,14 @@ function UsersTab() {
         </div>
         <div>
           <p className="text-foreground font-medium">No users added yet</p>
-          <p className="text-sm text-muted-foreground mt-1">Invite team members to get started</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isFreePlan ? "Upgrade to Basic or Pro to invite team members." : "Invite team members to get started"}
+          </p>
         </div>
         <button
-          onClick={() => setShowInviteDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          onClick={() => !isFreePlan && setShowInviteDialog(true)}
+          disabled={isFreePlan}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <UserPlus className="h-4 w-4" />
           Invite your first user
@@ -355,8 +374,10 @@ function UsersTab() {
             </div>
           </div>
           <button
-            onClick={() => setShowInviteDialog(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto"
+            onClick={() => !isFreePlan && setShowInviteDialog(true)}
+            disabled={isFreePlan}
+            title={isFreePlan ? "Upgrade to Basic or Pro to invite team members." : undefined}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="h-4 w-4" />
             Invite user
@@ -364,8 +385,22 @@ function UsersTab() {
         </div>
         <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1.5">
           <Info className="h-3.5 w-3.5" />
-          Active users count affects billing
+          {isFreePlan ? "Upgrade to Basic or Pro to invite team members." : "Active users count affects billing"}
         </p>
+      </div>
+
+      {/* Search */}
+      <div className="p-4 rounded-xl bg-card border border-border">
+        <input
+          type="text"
+          placeholder="Search by name or email..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(0);
+          }}
+          className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
+        />
       </div>
 
       {/* Users list */}
@@ -416,31 +451,34 @@ function UsersTab() {
               >
                 {user.role === "admin" ? "Admin" : "Employee"}
               </span>
-              <div className="relative group flex-shrink-0">
-                <button className="p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors">
-                  <MoreHorizontal className="h-4 w-4" />
-                </button>
-                <div className="absolute right-0 bottom-full mb-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                  {user.status === "pending" && (
-                    <button 
-                      onClick={() => handleResendInvitation(user.email)}
-                      className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      Resend invite
-                    </button>
-                  )}
-                  {user.id && user.email !== currentUserEmail && (
-                    <button
-                      onClick={() => setShowRemoveConfirm(user.id!)}
-                      className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Remove user
-                    </button>
-                  )}
+              {/* Hide 3-dots menu for current user (admin cannot remove themselves) */}
+              {user.email !== currentUserEmail && (
+                <div className="relative group flex-shrink-0">
+                  <button className="p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                  <div className="absolute right-0 bottom-full mb-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    {user.status === "pending" && (
+                      <button 
+                        onClick={() => handleResendInvitation(user.email)}
+                        className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Resend invite
+                      </button>
+                    )}
+                    {user.id && (
+                      <button
+                        onClick={() => setShowRemoveConfirm(user.id!)}
+                        className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Remove user
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         ))}
@@ -543,6 +581,11 @@ function UsersTab() {
               </button>
             </div>
             <div className="space-y-4">
+              {isFreePlan && (
+                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-500/10 dark:bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                  Upgrade to Basic or Pro to invite team members.
+                </p>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Email address</label>
                 <input
@@ -550,7 +593,8 @@ function UsersTab() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="colleague@company.com"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
+                  disabled={isFreePlan}
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all disabled:opacity-60"
                 />
               </div>
               <div className="space-y-2">
@@ -580,7 +624,7 @@ function UsersTab() {
               </button>
               <button
                 onClick={handleInvite}
-                disabled={!inviteEmail || isInviting}
+                disabled={!inviteEmail || isInviting || isFreePlan}
                 className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send invite"}

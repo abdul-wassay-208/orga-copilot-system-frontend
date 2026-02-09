@@ -1184,11 +1184,19 @@ function SuperAdminUsersTab() {
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParam, setSearchParam] = useState("");
   const pageSize = 10;
 
   useEffect(() => {
+    const t = setTimeout(() => setSearchParam(searchQuery), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
     setLoading(true);
-    adminClient.get(`/api/admin/super/users?page=${currentPage}&size=${pageSize}`)
+    const searchSegment = searchParam.trim() ? `&search=${encodeURIComponent(searchParam.trim())}` : "";
+    adminClient.get(`/api/admin/super/users?page=${currentPage}&size=${pageSize}${searchSegment}`)
       .then((r) => {
         const data = r.data || {};
         setUsers(data.content || []);
@@ -1200,7 +1208,7 @@ function SuperAdminUsersTab() {
         setUsers([]);
       })
       .finally(() => setLoading(false));
-  }, [currentPage]);
+  }, [currentPage, searchParam]);
 
   useEffect(() => {
     if (selectedUserId == null) {
@@ -1245,7 +1253,19 @@ function SuperAdminUsersTab() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-border overflow-hidden">
-        <h3 className="text-sm font-medium text-foreground px-4 py-3 border-b border-border bg-muted/30">All users</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
+          <h3 className="text-sm font-medium text-foreground">All users</h3>
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="sm:ml-auto w-full sm:w-64 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+        </div>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />

@@ -38,6 +38,7 @@ export function ChatLayout() {
     percentUsed: number;
     usageAlert90?: boolean;
     usageAlert100?: boolean;
+    unlimited?: boolean;
   } | null>(null);
   const [dismissedWarning, setDismissedWarning] = useState(false);
   const [showLongChatWarning, setShowLongChatWarning] = useState(false);
@@ -57,8 +58,8 @@ export function ChatLayout() {
     (c) => c.id === activeConversationId
   );
 
-  // Free plan: 0 message limit — disable input and prompts
-  const isFreeUser = usageData != null && usageData.messagesLimit <= 0;
+  // Free plan: 0 message limit — disable input and prompts. Super admin has unlimited.
+  const isFreeUser = usageData != null && !usageData.unlimited && usageData.messagesLimit <= 0;
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -92,6 +93,7 @@ export function ChatLayout() {
         percentUsed: data.percentUsed || 0,
         usageAlert90: data.usageAlert90,
         usageAlert100: data.usageAlert100,
+        unlimited: data.unlimited === true,
       });
       // Reset dismissed warning if usage drops below 80%
       if (data.percentUsed < 80) {
@@ -252,10 +254,12 @@ export function ChatLayout() {
 
     try {
       await chatClient.delete(`/chat/conversations/${deleteConversationId}`);
-      setConversations((prev) => prev.filter((c) => String(c.id) !== String(deleteConversationId)));
+      // Clear active conversation first so main area updates immediately
       if (activeConversationId === deleteConversationId) {
         setActiveConversationId(null);
       }
+      // Remove from sidebar (left side) so deleted chat disappears from list
+      setConversations((prev) => prev.filter((c) => String(c.id) !== String(deleteConversationId)));
       toast.success("Conversation deleted");
       setDeleteConversationId(null);
     } catch (error: any) {
@@ -535,8 +539,8 @@ export function ChatLayout() {
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return;
     
-    // Check usage limit before sending
-    if (usageData && usageData.percentUsed >= 100) {
+    // Check usage limit before sending (super admin has unlimited and is not blocked)
+    if (usageData && !usageData.unlimited && usageData.percentUsed >= 100) {
       toast.error(`You've reached your monthly message limit of ${usageData.messagesLimit} messages. Please contact your administrator to upgrade your plan.`);
       return;
     }
@@ -1010,7 +1014,7 @@ export function ChatLayout() {
               </div>
             )}
             {/* Usage Warning Banner */}
-            {usageData && !isFreeUser && (usageData.percentUsed >= 80 || usageData.usageAlert90) && !dismissedWarning && (
+            {usageData && !isFreeUser && !usageData.unlimited && (usageData.percentUsed >= 80 || usageData.usageAlert90) && !dismissedWarning && (
               <div className={cn(
                 "mx-4 md:mx-6 mt-4 p-3 rounded-lg border space-y-2 animate-fade-in",
                 usageData.percentUsed >= 100
@@ -1043,6 +1047,8 @@ export function ChatLayout() {
                     )}>
                       {usageData.percentUsed >= 100 
                         ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages."
+                        : usageData.unlimited
+                        ? `${usageData.messagesUsed} messages used this month (Unlimited).`
                         : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
                     </p>
                     <Link

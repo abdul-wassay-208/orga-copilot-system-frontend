@@ -110,7 +110,13 @@ export function ChatMessage({
       onMouseLeave={() => setShowActions(false)}
     >
       <div className="chat-width px-4 md:px-6">
-        <div className="flex items-start gap-3 md:gap-4">
+        {/* ChatGPT-style: user message bubble on right, assistant on left */}
+        <div
+          className={cn(
+            "flex items-start gap-3 md:gap-4",
+            isUser ? "justify-end" : "justify-start"
+          )}
+        >
           {/* Role indicator */}
           <div
             className={cn(
@@ -124,7 +130,7 @@ export function ChatMessage({
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-w-0 space-y-2">
+          <div className={cn("flex-1 min-w-0 space-y-2", isUser && "max-w-[85%] md:max-w-2xl")}>
             {isEditing ? (
               <div className="space-y-2">
                 <textarea

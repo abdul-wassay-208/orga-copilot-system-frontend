@@ -36,6 +36,7 @@ export default function SettingsPage() {
     messagesUsed: 0,
     messagesLimit: 1000,
     percentUsed: 0,
+    unlimited: false as boolean,
   });
   const [isLoadingUsage, setIsLoadingUsage] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -279,6 +280,7 @@ export default function SettingsPage() {
         messagesUsed: data.messagesUsed || 0,
         messagesLimit: data.messagesLimit || 1000,
         percentUsed: data.percentUsed || 0,
+        unlimited: data.unlimited === true,
       });
     } catch (error: any) {
       console.error("Failed to load usage data:", error);
@@ -771,6 +773,7 @@ export default function SettingsPage() {
                     {usageData.messagesUsed} / {usageData.messagesLimit}
                   </span>
                 </div>
+                {!usageData.unlimited && (
                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                   <div
                     className={cn(
@@ -784,7 +787,8 @@ export default function SettingsPage() {
                     style={{ width: `${Math.min(usageData.percentUsed, 100)}%` }}
                   />
                 </div>
-                {usageData.percentUsed >= 80 && (
+                )}
+                {!usageData.unlimited && usageData.percentUsed >= 80 && (
                   <div className={cn(
                     "p-3 rounded-lg border space-y-2 animate-fade-in",
                     usageData.percentUsed >= 100
@@ -817,6 +821,8 @@ export default function SettingsPage() {
                         )}>
                           {usageData.percentUsed >= 100 
                             ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages to avoid service interruption."
+                            : usageData.unlimited
+                            ? `${usageData.messagesUsed} messages used this month (Unlimited).`
                             : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages this month (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
                         </p>
                       </div>
