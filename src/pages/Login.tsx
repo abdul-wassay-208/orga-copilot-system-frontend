@@ -130,7 +130,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center space-y-2">
           
-          <h1 className="text-2xl font-semibold text-foreground">Welcome to Evo Associate</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Welcome to Evo Associates</h1>
           <p className="text-sm text-muted-foreground">
             Your AI-powered enterprise assistant
           </p>
