@@ -34,7 +34,11 @@ export function ProtectedRoute({ children, allowedRoles, requireSubscription = f
       setCheckingSubscription(true);
       const response = await adminClient.get("/api/subscription/status");
       const data = response.data;
-      
+      // Super Admins get hasSubscription: false so they don't see another org's billing; allow them to chat
+      if (data.isSuperAdmin === true) {
+        setSubscriptionValid(true);
+        return;
+      }
       if (!data.hasSubscription) {
         setSubscriptionValid(false);
         return;
