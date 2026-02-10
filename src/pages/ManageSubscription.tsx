@@ -122,6 +122,7 @@ export default function ManageSubscriptionPage() {
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponValid, setCouponValid] = useState<{ planName: string } | null>(null);
+  const [isSuperAdminBilling, setIsSuperAdminBilling] = useState(false);
   
   // Handle Stripe checkout redirect first, then load data
   useEffect(() => {
@@ -192,6 +193,26 @@ export default function ManageSubscriptionPage() {
       const status = statusResponse.status === 'fulfilled' ? statusResponse.value.data : null;
       const metrics = metricsResponse.status === 'fulfilled' ? metricsResponse.value.data : {};
       const me = meResponse.status === 'fulfilled' ? meResponse.value.data : {};
+      
+      // Super Admins manage subscriptions per-org from Super Admin dashboard; don't show a tenant's subscription
+      if (status && status.isSuperAdmin === true) {
+        setIsSuperAdminBilling(true);
+        setSubscription({
+          type: "organization",
+          organizationName: "",
+          plan: "Free Plan",
+          pricePerUser: 0,
+          planPrice: 0,
+          activeUsers: 0,
+          totalUsers: 0,
+          billingCycle: "Monthly",
+          status: "active",
+          renewalDate: new Date(),
+          coupon: null,
+          usage: { current: 0, limit: 0 },
+        });
+        return;
+      }
       
       if (status && status.hasSubscription) {
         const isOrg = status.type === "organization";
@@ -372,6 +393,39 @@ export default function ManageSubscriptionPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Super Admin: subscriptions are managed per organization from the Super Admin dashboard
+  if (isSuperAdminBilling) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+            <button
+              onClick={() => navigate("/chat")}
+              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-lg font-semibold text-foreground">Manage Subscription</h1>
+          </div>
+        </header>
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="p-6 rounded-xl border border-border bg-card text-center space-y-4">
+            <p className="text-foreground font-medium">You are a Super Admin.</p>
+            <p className="text-sm text-muted-foreground">
+              Subscriptions are managed per organization. Use the Super Admin dashboard to view and manage each organization&apos;s subscription and billing.
+            </p>
+            <Link
+              to="/super-admin"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Go to Super Admin dashboard
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

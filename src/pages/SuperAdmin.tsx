@@ -47,6 +47,15 @@ import {
 
 type Tab = "tenants" | "usage" | "coupons" | "users" | "knowledge" | "limits";
 
+/** Backend uses Long.MAX_VALUE for unlimited; show ∞ in UI */
+const UNLIMITED_LIMIT_THRESHOLD = 1e18;
+function formatMessageLimit(limit: number): string {
+  return limit >= UNLIMITED_LIMIT_THRESHOLD ? "∞" : limit.toLocaleString();
+}
+function isUnlimitedLimit(limit: number): boolean {
+  return limit >= UNLIMITED_LIMIT_THRESHOLD;
+}
+
 interface Tenant {
   id: string;
   name: string;
@@ -357,7 +366,8 @@ function TenantsTab() {
     e?.preventDefault();
     e?.stopPropagation();
     setLimitModalTenant(tenant);
-    setLimitModalValue(String(tenant.messagesLimit ?? 500));
+    const lim = tenant.messagesLimit ?? 500;
+    setLimitModalValue(isUnlimitedLimit(lim) ? "" : String(lim));
   };
 
   const handleSaveLimit = async () => {
@@ -532,7 +542,7 @@ function TenantsTab() {
               </button>
             </div>
             <p className="text-sm text-muted-foreground">
-              {limitModalTenant.name} — currently {(limitModalTenant.messagesUsed ?? 0).toLocaleString()} / {(limitModalTenant.messagesLimit ?? 500).toLocaleString()} used
+              {limitModalTenant.name} — currently {(limitModalTenant.messagesUsed ?? 0).toLocaleString()} / {formatMessageLimit(limitModalTenant.messagesLimit ?? 500)} used
             </p>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">New monthly limit</label>
@@ -579,6 +589,7 @@ function TenantsTab() {
         tenants.map((tenant) => {
           const used = tenant.messagesUsed ?? 0;
           const limit = tenant.messagesLimit ?? 500;
+          const unlimited = isUnlimitedLimit(limit);
           return (
           <div key={tenant.id}>
           <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors min-w-0">
@@ -615,14 +626,14 @@ function TenantsTab() {
                 )}
                 title="Click to change limit"
               >
-                <span className="font-medium whitespace-nowrap">{used.toLocaleString()} / {limit.toLocaleString()}</span>
+                <span className="font-medium whitespace-nowrap">{used.toLocaleString()} / {formatMessageLimit(limit)}</span>
                 <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden min-w-[64px]">
                   <div
                     className={cn(
                       "h-full rounded-full",
-                      limit > 0 && (used / limit) > 0.9 ? "bg-destructive" : "progress-gradient-fill"
+                      !unlimited && limit > 0 && (used / limit) > 0.9 ? "bg-destructive" : "progress-gradient-fill"
                     )}
-                    style={{ width: `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
+                    style={{ width: unlimited ? "0%" : `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
                   />
                 </div>
               </button>
@@ -916,7 +927,7 @@ function UsageOverviewTab() {
           <ul className="text-sm text-foreground space-y-1">
             {tenantsAt90.map((t) => (
               <li key={t.name}>
-                {t.name}: {t.usage}/{t.limit} ({t.percent}%)
+                {t.name}: {t.usage}/{formatMessageLimit(t.limit)} ({t.percent}%)
               </li>
             ))}
           </ul>
@@ -930,7 +941,7 @@ function UsageOverviewTab() {
           <p className="text-sm text-muted-foreground mt-1">Total Messages</p>
         </div>
         <div className="p-5 rounded-xl border border-border bg-card">
-          <p className="text-3xl font-semibold text-foreground">{usageData.totalLimit.toLocaleString()}</p>
+          <p className="text-3xl font-semibold text-foreground">{formatMessageLimit(usageData.totalLimit)}</p>
           <p className="text-sm text-muted-foreground mt-1">Total Limit Of Messages</p>
         </div>
         <div className="p-5 rounded-xl border border-border bg-card">
@@ -947,24 +958,27 @@ function UsageOverviewTab() {
       <div className="p-5 rounded-xl border border-border bg-card space-y-4">
         <h3 className="text-sm font-medium text-foreground">Usage by Organization</h3>
         <div className="space-y-3">
-          {topTenants.map((tenant) => (
+          {topTenants.map((tenant) => {
+            const unlim = isUnlimitedLimit(tenant.limit);
+            const pct = unlim ? 0 : (tenant.usage / tenant.limit) * 100;
+            return (
             <div key={tenant.name} className="flex items-center gap-4">
               <div className="w-32 text-sm text-foreground truncate">{tenant.name}</div>
               <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
                 <div
                   className={cn(
                     "h-full rounded-full",
-                    (tenant.usage / tenant.limit) > 0.9 ? "bg-destructive" :
-                    (tenant.usage / tenant.limit) > 0.75 ? "bg-yellow-500" : "progress-gradient-fill"
+                    !unlim && pct > 90 ? "bg-destructive" :
+                    !unlim && pct > 75 ? "bg-yellow-500" : "progress-gradient-fill"
                   )}
-                  style={{ width: `${(tenant.usage / tenant.limit) * 100}%` }}
+                  style={{ width: `${pct}%` }}
                 />
               </div>
               <div className="w-32 text-sm text-muted-foreground text-right">
-                {tenant.usage.toLocaleString()} / {tenant.limit.toLocaleString()}
+                {tenant.usage.toLocaleString()} / {formatMessageLimit(tenant.limit)}
               </div>
             </div>
-          ))}
+          );})}
         </div>
       </div>
 
@@ -1487,7 +1501,7 @@ function SuperAdminUsersTab() {
                     <td className="px-4 py-3 text-muted-foreground">{u.role}</td>
                     <td className="px-4 py-3 text-muted-foreground">{u.tenantName ?? "—"}</td>
                     <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap">
-                      {used.toLocaleString()} / {limit.toLocaleString()}
+                      {used.toLocaleString()} / {formatMessageLimit(limit)}
                     </td>
                   </tr>
                   );
@@ -1528,16 +1542,16 @@ function SuperAdminUsersTab() {
             <div>
               <p className="text-xs text-muted-foreground">Messages used this month</p>
               <p className="font-medium text-foreground">
-                {(userDetail.messagesUsed ?? 0).toLocaleString()} / {(userDetail.messagesLimit ?? userDetail.effectiveMessageLimit ?? 500).toLocaleString()}
+                {(userDetail.messagesUsed ?? 0).toLocaleString()} / {formatMessageLimit(userDetail.messagesLimit ?? userDetail.effectiveMessageLimit ?? 500)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Plan default message limit</p>
-              <p className="font-medium text-foreground">{userDetail.planMessageLimit}</p>
+              <p className="font-medium text-foreground">{formatMessageLimit(Number(userDetail.planMessageLimit) || 0)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Effective message limit</p>
-              <p className="font-medium text-foreground">{userDetail.effectiveMessageLimit}</p>
+              <p className="font-medium text-foreground">{formatMessageLimit(Number(userDetail.effectiveMessageLimit) || 0)}</p>
             </div>
           </div>
           <div className="border-t border-border pt-4">
