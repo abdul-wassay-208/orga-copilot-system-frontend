@@ -117,6 +117,7 @@ export default function ManageSubscriptionPage() {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const loadingRef = useRef(false);
+  const plansSectionRef = useRef<HTMLDivElement>(null);
   const [couponCode, setCouponCode] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
@@ -143,7 +144,16 @@ export default function ManageSubscriptionPage() {
       loadSubscription();
     }
   }, [checkingRole, userRole, searchParams]);
-  
+
+  // When user clicks "Change Plan", scroll the plans section into view
+  useEffect(() => {
+    if (!showPlans) return;
+    const id = requestAnimationFrame(() => {
+      plansSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [showPlans]);
+
   const verifyCheckoutSession = async (sessionId: string) => {
     if (loadingRef.current) return; // Prevent duplicate calls
     
@@ -405,7 +415,7 @@ export default function ManageSubscriptionPage() {
 
         {/* Subscription Plans - Only show when user wants to change plan */}
         {showPlans && (
-          <div className="space-y-4">
+          <div ref={plansSectionRef} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">Change Plan</h2>
               <button

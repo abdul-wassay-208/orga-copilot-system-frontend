@@ -26,6 +26,16 @@ import { cn } from "@/lib/utils";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
@@ -182,6 +192,14 @@ export default function SuperAdminPage() {
   );
 }
 
+interface TenantUserRow {
+  id: string | null;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+}
+
 function TenantsTab() {
   const { theme } = useTheme();
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -195,16 +213,27 @@ function TenantsTab() {
   const [limitModalTenant, setLimitModalTenant] = useState<Tenant | null>(null);
   const [limitModalValue, setLimitModalValue] = useState("");
   const [savingLimit, setSavingLimit] = useState(false);
+  const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<TenantUserRow[]>([]);
+  const [loadingTenantUsers, setLoadingTenantUsers] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParam, setSearchParam] = useState("");
   const pageSize = 10;
 
   useEffect(() => {
+    const t = setTimeout(() => setSearchParam(searchQuery), 500);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
     loadTenants(currentPage);
-  }, [currentPage]);
+  }, [currentPage, searchParam]);
 
   const loadTenants = async (page: number = 0) => {
     try {
       setLoading(true);
-      const response = await adminClient.get(`/api/admin/super/tenants?page=${page}&size=${pageSize}`);
+      const searchSegment = searchParam.trim() ? `&search=${encodeURIComponent(searchParam.trim())}` : "";
+      const response = await adminClient.get(`/api/admin/super/tenants?page=${page}&size=${pageSize}${searchSegment}`);
       const responseData = response.data || {};
       const backendTenants = responseData.content || [];
       
@@ -292,6 +321,38 @@ function TenantsTab() {
     }
   };
 
+  const loadTenantUsers = async (tenantId: string) => {
+    try {
+      setLoadingTenantUsers(true);
+      const response = await adminClient.get(`/api/admin/tenant/users?tenantId=${tenantId}&page=0&size=100`);
+      const data = response.data || {};
+      const list = (data.content || []).map((u: any) => ({
+        id: u.id ? String(u.id) : null,
+        name: u.fullName || (u.email || "").split("@")[0],
+        email: u.email || "",
+        role: u.role === "TENANT_ADMIN" ? "Admin" : "Employee",
+        status: u.status === "PENDING" ? "Pending" : "Active",
+      }));
+      setTenantUsers(list);
+    } catch (err: any) {
+      console.error("Failed to load tenant users:", err);
+      toast.error("Failed to load users for this organization");
+      setTenantUsers([]);
+    } finally {
+      setLoadingTenantUsers(false);
+    }
+  };
+
+  const toggleTenantUsers = (tenant: Tenant) => {
+    if (expandedTenantId === tenant.id) {
+      setExpandedTenantId(null);
+      setTenantUsers([]);
+    } else {
+      setExpandedTenantId(tenant.id);
+      loadTenantUsers(tenant.id);
+    }
+  };
+
   const openLimitModal = (tenant: Tenant, e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
@@ -322,10 +383,18 @@ function TenantsTab() {
     }
   };
 
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<{
+    totalTenants?: number;
+    activeTenants?: number;
+    totalUsers?: number;
+    totalMessagesUsed?: number;
+    totalMessagesLimit?: number;
+  }>({
     totalTenants: 0,
     activeTenants: 0,
     totalUsers: 0,
+    totalMessagesUsed: 0,
+    totalMessagesLimit: 0,
   });
 
   useEffect(() => {
@@ -382,7 +451,7 @@ function TenantsTab() {
               <p className="text-2xl font-semibold text-foreground">
                 {metrics.activeTenants || tenants.filter((t) => t.status === "active").length}
               </p>
-              <p className="text-xs text-muted-foreground">Active</p>
+              <p className="text-xs text-muted-foreground">Active Users</p>
             </div>
           </div>
         </div>
@@ -414,7 +483,7 @@ function TenantsTab() {
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">
-                {tenants.reduce((acc, t) => acc + t.messagesUsed, 0).toLocaleString()}
+                {(metrics.totalMessagesUsed ?? tenants.reduce((acc, t) => acc + t.messagesUsed, 0)).toLocaleString()}
               </p>
               <p className="text-xs text-muted-foreground">Messages Used</p>
             </div>
@@ -435,6 +504,20 @@ function TenantsTab() {
           <Plus className="h-4 w-4" />
           Add Tenant
         </button>
+      </div>
+
+      {/* Search */}
+      <div className="p-4 rounded-xl bg-card border border-border">
+        <input
+          type="text"
+          placeholder="Search by organization name..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(0);
+          }}
+          className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
+        />
       </div>
 
       {/* Limit edit modal - rendered via portal to body for true centered popup overlay */}
@@ -488,11 +571,17 @@ function TenantsTab() {
 
       {/* Tenants list */}
       <div className="border border-border rounded-xl divide-y divide-border overflow-x-auto">
-        {tenants.map((tenant) => {
+        {!loading && tenants.length === 0 ? (
+          <div className="text-center py-10 px-4 text-muted-foreground text-sm">
+            {searchParam.trim() ? "No organizations match your search." : "No organizations yet."}
+          </div>
+        ) : (
+        tenants.map((tenant) => {
           const used = tenant.messagesUsed ?? 0;
           const limit = tenant.messagesLimit ?? 500;
           return (
-          <div key={tenant.id} className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors min-w-0">
+          <div key={tenant.id}>
+          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors min-w-0">
             <div className="flex items-center gap-4 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                 <Building2 className="h-5 w-5 text-muted-foreground" />
@@ -540,16 +629,56 @@ function TenantsTab() {
               <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", getStatusColor(tenant.status))}>
                 {getStatusLabel(tenant.status)}
               </span>
-              <Link
-                to={`/admin?tenant=${tenant.id}`}
-                className="p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors"
+              <button
+                type="button"
+                onClick={() => toggleTenantUsers(tenant)}
+                className={cn(
+                  "p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors",
+                  expandedTenantId === tenant.id && "bg-chat-hover text-foreground"
+                )}
+                title="View users in this organization"
+                aria-label="View users"
               >
-                <ChevronRight className="h-4 w-4" />
-              </Link>
+                <ChevronRight className={cn("h-4 w-4 transition-transform", expandedTenantId === tenant.id && "rotate-90")} />
+              </button>
             </div>
           </div>
+          {expandedTenantId === tenant.id && (
+            <div className="border-t border-border bg-muted/20 px-4 py-3">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Users in this organization</p>
+              {loadingTenantUsers ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading users...
+                </div>
+              ) : tenantUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No users found.</p>
+              ) : (
+                <ul className="space-y-1.5 max-h-60 overflow-y-auto">
+                  {tenantUsers.map((u) => (
+                    <li key={u.id || u.email} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md bg-card border border-border text-sm">
+                      <div className="min-w-0">
+                        <span className="font-medium text-foreground truncate block">{u.name}</span>
+                        <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                      </div>
+                      <span className={cn(
+                        "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
+                        u.role === "Admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      )}>{u.role}</span>
+                      <span className={cn(
+                        "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
+                        u.status === "Active" ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                      )}>{u.status}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+          </div>
         );
-        })}
+        })
+        )}
       </div>
 
       {/* Pagination */}
@@ -720,9 +849,9 @@ function UsageOverviewTab() {
       const tenants = responseData.content || [];
       const metrics = metricsResponse.data || {};
       
-      // Calculate totals
-      const totalMessages = tenants.reduce((acc: number, t: any) => acc + (t.messagesUsed || 0), 0);
-      const totalLimit = tenants.reduce((acc: number, t: any) => acc + (t.messagesLimit || t.maxMessagesPerMonth || 0), 0);
+      // Use overall metrics from backend when available (all tenants); fallback to sum of fetched tenants
+      const totalMessages = metrics.totalMessagesUsed != null ? Number(metrics.totalMessagesUsed) : tenants.reduce((acc: number, t: any) => acc + (t.messagesUsed || 0), 0);
+      const totalLimit = metrics.totalMessagesLimit != null ? Number(metrics.totalMessagesLimit) : tenants.reduce((acc: number, t: any) => acc + (t.messagesLimit || t.maxMessagesPerMonth || 0), 0);
       
       setUsageData({
         totalMessages,
@@ -802,7 +931,7 @@ function UsageOverviewTab() {
         </div>
         <div className="p-5 rounded-xl border border-border bg-card">
           <p className="text-3xl font-semibold text-foreground">{usageData.totalLimit.toLocaleString()}</p>
-          <p className="text-sm text-muted-foreground mt-1">Total Limit</p>
+          <p className="text-sm text-muted-foreground mt-1">Total Limit Of Messages</p>
         </div>
         <div className="p-5 rounded-xl border border-border bg-card">
           <p className="text-3xl font-semibold text-foreground">{usageData.totalUsers}</p>
@@ -874,13 +1003,23 @@ function CouponsTab() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [couponToDelete, setCouponToDelete] = useState<CouponItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchParam, setSearchParam] = useState("");
   const pageSize = 10;
+
+  useEffect(() => {
+    const t = setTimeout(() => setSearchParam(searchQuery), 500);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   const loadCoupons = async (page: number = 0) => {
     try {
       setLoadingCoupons(true);
+      const params: { page: number; size: number; search?: string } = { page, size: pageSize };
+      if (searchParam.trim()) params.search = searchParam.trim();
       const response = await adminClient.get("/api/admin/super/coupons", {
-        params: { page, size: pageSize },
+        params,
       });
       const list = response.data?.coupons ?? [];
       setCoupons(list.map((c: any) => ({
@@ -907,12 +1046,16 @@ function CouponsTab() {
 
   useEffect(() => {
     loadCoupons(currentPage);
-  }, [currentPage]);
+  }, [currentPage, searchParam]);
 
-  const handleDeleteCoupon = async (id: number) => {
+  const handleDeleteCoupon = async (id: number, deletedCode?: string) => {
+    setCouponToDelete(null);
     setDeletingId(id);
     try {
       await adminClient.delete(`/api/admin/super/coupons/${id}`);
+      if (deletedCode && lastCreated?.code === deletedCode) {
+        setLastCreated(null);
+      }
       toast.success("Coupon deleted");
       await loadCoupons(currentPage);
     } catch (e: any) {
@@ -1005,7 +1148,7 @@ function CouponsTab() {
                 onChange={(e) => setPlanName(e.target.value as "BASIC" | "PRO")}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
               >
-                <option value="BASIC">Basic ($1 / 10 messages)</option>
+                <option value="BASIC">Basic ($10 / 10 messages)</option>
                 <option value="PRO">Pro ($50 / 200 messages)</option>
               </select>
             </div>
@@ -1053,6 +1196,20 @@ function CouponsTab() {
         </div>
       )}
 
+      {/* Search coupons */}
+      <div className="p-4 rounded-xl bg-card border border-border">
+        <input
+          type="text"
+          placeholder="Search by code, email, or plan..."
+          value={searchQuery}
+          onChange={(e) => {
+            setSearchQuery(e.target.value);
+            setCurrentPage(0);
+          }}
+          className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
+        />
+      </div>
+
       {/* All coupons list */}
       <div className="rounded-xl border border-border overflow-hidden">
         <h3 className="text-sm font-medium text-foreground px-4 py-3 border-b border-border bg-muted/30">
@@ -1069,7 +1226,9 @@ function CouponsTab() {
             <span className="text-sm">Loading coupons…</span>
           </div>
         ) : coupons.length === 0 ? (
-          <p className="text-sm text-muted-foreground px-4 py-6">No coupons yet. Create one above.</p>
+          <p className="text-sm text-muted-foreground px-4 py-6">
+            {searchParam.trim() ? "No coupons match your search." : "No coupons yet. Create one above."}
+          </p>
         ) : (
           <>
             <div className="overflow-x-auto">
@@ -1099,7 +1258,7 @@ function CouponsTab() {
                       <td className="px-4 py-3 text-right">
                         {c.status === "active" ? (
                           <button
-                            onClick={() => handleDeleteCoupon(c.id)}
+                            onClick={() => setCouponToDelete(c)}
                             disabled={deletingId === c.id}
                             className="p-1.5 rounded-lg text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                             title="Delete coupon"
@@ -1119,6 +1278,31 @@ function CouponsTab() {
                 </tbody>
               </table>
             </div>
+            {/* Delete coupon confirmation */}
+            <AlertDialog open={!!couponToDelete} onOpenChange={(open) => !open && setCouponToDelete(null)}>
+              <AlertDialogContent className="sm:max-w-[425px]">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete coupon?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete the coupon{" "}
+                    <strong className="font-mono font-semibold text-foreground">{couponToDelete?.code}</strong>
+                    {couponToDelete?.assignToEmail && (
+                      <> assigned to {couponToDelete.assignToEmail}.</>
+                    )}
+                    . This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="sm:justify-end">
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => couponToDelete && handleDeleteCoupon(couponToDelete.id, couponToDelete.code)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10">
                 <button

@@ -8,6 +8,8 @@ interface ChatInputProps {
   placeholder?: string;
   showPromptChips?: boolean;
   onSelectPrompt?: (prompt: string) => void;
+  /** When set and input is disabled, clicking/focusing the input triggers this (e.g. redirect to billing). */
+  onDisabledClick?: () => void;
 }
 
 export function ChatInput({
@@ -16,6 +18,7 @@ export function ChatInput({
   placeholder = "What's on your mind?",
   showPromptChips = false,
   onSelectPrompt,
+  onDisabledClick,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -54,14 +57,24 @@ export function ChatInput({
             isFocused
               ? "border-chat-input-focus shadow-sm ring-2 ring-chat-input-focus/10"
               : "border-chat-input-border",
-            "bg-chat-input-bg"
+            "bg-chat-input-bg",
+            disabled && onDisabledClick && "cursor-pointer"
           )}
+          onClick={() => {
+            if (disabled && onDisabledClick) onDisabledClick();
+          }}
         >
           <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            onFocus={() => setIsFocused(true)}
+            onFocus={() => {
+              if (disabled && onDisabledClick) {
+                onDisabledClick();
+                return;
+              }
+              setIsFocused(true);
+            }}
             onBlur={() => setIsFocused(false)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
@@ -90,7 +103,7 @@ export function ChatInput({
 
         {/* Helper text */}
         <p className="text-xs text-muted-foreground/50 text-center">
-          Press Enter to send · Shift + Enter for new line
+        AI can make mistakes. Check important info.
         </p>
       </div>
     </div>

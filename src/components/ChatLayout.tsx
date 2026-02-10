@@ -996,6 +996,7 @@ export function ChatLayout() {
                 : usageData?.percentUsed >= 100 
                   ? "Monthly message limit reached. Contact your administrator to upgrade."
                   : "What's on your mind?"}
+              onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? () => navigate("/billing") : undefined}
             />
           </>
         ) : (
@@ -1011,7 +1012,7 @@ export function ChatLayout() {
                       Upgrade your plan to send messages. Go to Settings to choose Basic or Pro, or use a coupon code if you have one.
                     </p>
                     <Link
-                      to="/settings"
+                      to="/billing"
                       className="text-xs font-medium text-primary hover:text-primary/80 underline"
                     >
                       Upgrade plan
@@ -1066,10 +1067,10 @@ export function ChatLayout() {
                         : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
                     </p>
                     <Link
-                      to="/settings"
+                      to="/billing"
                       className="text-xs font-medium text-primary hover:text-primary/80 underline"
                     >
-                      View usage details
+                      {usageData.percentUsed >= 100 ? "Upgrade plan" : "View usage details"}
                     </Link>
                   </div>
                   <button
@@ -1100,6 +1101,7 @@ export function ChatLayout() {
                       : "What's on your mind?"}
                   showPromptChips={!isFreeUser}
                   onSelectPrompt={handleSendMessage}
+                  onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? () => navigate("/billing") : undefined}
                 />
               </>
             ) : (
@@ -1116,12 +1118,12 @@ export function ChatLayout() {
                         key={message.id}
                         message={message}
                         onEdit={handleSaveEdit}
-                        onDelete={handleDeleteMessage}
                         isEditing={editingMessageId === message.id}
                         onStartEdit={handleStartEdit}
                         onCancelEdit={handleCancelEdit}
                         editText={editText}
                         onEditTextChange={setEditText}
+                        onShareConversation={() => setShowShareModal(true)}
                       />
                     ))}
                   {/* Show typing indicator when streaming and we have an empty placeholder message */}
@@ -1145,6 +1147,7 @@ export function ChatLayout() {
                       : "What's on your mind?"}
                   showPromptChips={!isFreeUser && activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
                   onSelectPrompt={handleSendMessage}
+                  onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? () => navigate("/billing") : undefined}
                 />
               </>
             )}
@@ -1222,7 +1225,7 @@ export function ChatLayout() {
                 : "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption."}
             </p>
             <div className="flex gap-2">
-              <Link to="/settings" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
+              <Link to="/billing" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
               <button onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Dismiss</button>
             </div>
           </div>

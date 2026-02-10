@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Copy, Check, Share2, Download, Edit2, Trash2, X } from "lucide-react";
+import { Copy, Check, Share2, Download, Edit2, X } from "lucide-react";
 import { Message } from "@/types/chat";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -9,23 +9,24 @@ import remarkGfm from "remark-gfm";
 interface ChatMessageProps {
   message: Message;
   onEdit?: (messageId: string, newContent: string) => Promise<void>;
-  onDelete?: (messageId: string) => Promise<void>;
   isEditing?: boolean;
   onStartEdit?: (messageId: string) => void;
   onCancelEdit?: () => void;
   editText?: string;
   onEditTextChange?: (text: string) => void;
+  /** Opens the same Share Conversation modal as the header button (share full conversation link). */
+  onShareConversation?: () => void;
 }
 
 export function ChatMessage({ 
   message, 
   onEdit, 
-  onDelete, 
   isEditing = false,
   onStartEdit,
   onCancelEdit,
   editText = "",
-  onEditTextChange
+  onEditTextChange,
+  onShareConversation
 }: ChatMessageProps) {
   const [copied, setCopied] = useState(false);
   const [showActions, setShowActions] = useState(false);
@@ -37,12 +38,18 @@ export function ChatMessage({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleShare = async () => {
+  const handleShareClick = () => {
+    if (onShareConversation) {
+      onShareConversation();
+    } else {
+      handleShareMessageOnly();
+    }
+  };
+
+  const handleShareMessageOnly = async () => {
     try {
       if (navigator.share) {
-        await navigator.share({
-          text: message.content,
-        });
+        await navigator.share({ text: message.content });
       } else {
         await navigator.clipboard.writeText(message.content);
         toast.success("Message copied to clipboard");
@@ -77,15 +84,6 @@ export function ChatMessage({
     }
     if (onEdit) {
       await onEdit(message.id, editText.trim());
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this message?")) {
-      return;
-    }
-    if (onDelete) {
-      await onDelete(message.id);
     }
   };
 
@@ -277,16 +275,6 @@ export function ChatMessage({
                       <span>Edit</span>
                     </button>
                   )}
-                  {isUser && isSavedToBackend && onDelete && (
-                    <button
-                      onClick={handleDelete}
-                      className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
-                      aria-label="Delete message"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      <span>Delete</span>
-                    </button>
-                  )}
                   <button
                     onClick={handleCopy}
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
@@ -305,9 +293,9 @@ export function ChatMessage({
                     )}
                   </button>
                   <button
-                    onClick={handleShare}
+                    onClick={handleShareClick}
                     className="flex items-center gap-1.5 px-2 py-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                    aria-label="Share message"
+                    aria-label="Share conversation"
                   >
                     <Share2 className="h-3.5 w-3.5" />
                     <span>Share</span>

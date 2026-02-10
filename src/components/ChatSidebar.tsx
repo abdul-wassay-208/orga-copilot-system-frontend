@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User, ShieldCheck, Crown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Conversation } from "@/types/chat";
@@ -217,7 +217,7 @@ export function ChatSidebar({
                 to="/admin"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
               >
-                <Settings className="h-4 w-4" />
+                <ShieldCheck className="h-4 w-4" />
                 Admin
               </Link>
             )}
@@ -226,7 +226,7 @@ export function ChatSidebar({
                 to="/super-admin"
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
               >
-                <Settings className="h-4 w-4" />
+                <Crown className="h-4 w-4" />
                 Super Admin
               </Link>
             )}
