@@ -101,10 +101,17 @@ export default function AcceptInvitationPage() {
         
         // Set success state
         setSuccess(true);
-        toast.success("Invitation accepted! Your account has been created.");
+        const message = response.data.message || "Invitation accepted! Your account has been created.";
+        toast.success(message);
 
         // Redirect after a short delay
         setTimeout(() => {
+          // If backend indicates redirect to billing (e.g., Super Admin invitation), go to billing
+          if (response.data.redirectToBilling) {
+            navigate("/billing", { replace: true });
+            return;
+          }
+          
           // Redirect based on role if available
           const role = response.data.role;
           if (role === "SUPER_ADMIN") {

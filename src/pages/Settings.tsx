@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Eye, EyeOff, Loader2, AlertTriangle, CreditCard, ChevronRight, CheckCircle, Lock } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, AlertTriangle, CreditCard, ChevronRight, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useTheme } from "@/hooks/useTheme";
@@ -56,6 +56,21 @@ export default function SettingsPage() {
     }, 300000); // 5 minutes = 300000ms
     
     return () => clearInterval(interval);
+  }, []);
+
+  // Scroll to usage section when hash is present
+  useEffect(() => {
+    if (window.location.hash === "#usage") {
+      const usageSection = document.getElementById("usage");
+      if (usageSection) {
+        // Small delay to ensure page is rendered
+        setTimeout(() => {
+          usageSection.scrollIntoView({ behavior: "smooth", block: "start" });
+          // Remove hash after scrolling to avoid re-scrolling on refresh
+          window.history.replaceState(null, "", window.location.pathname);
+        }, 100);
+      }
+    }
   }, []);
 
   const loadUserData = async () => {
@@ -630,7 +645,7 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <Lock className="h-4 w-4 text-primary" />
+                  <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                   <h3 className="text-sm font-semibold text-foreground">
                     Two-Factor Authentication
                   </h3>
@@ -645,12 +660,10 @@ export default function SettingsPage() {
                 onClick={handleToggle2FA}
                 disabled={isToggling2FA}
                 className={cn(
-                  "px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2",
-                  twoFactorEnabled
-                    ? "bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/20"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 text-[#221F20] hover:opacity-90",
                   isToggling2FA && "opacity-50 cursor-not-allowed"
                 )}
+                style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
               >
                 {isToggling2FA ? (
                   <>
@@ -697,7 +710,7 @@ export default function SettingsPage() {
             {/* Data Storage & Encryption */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" />
+                <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                 Data Encryption
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -710,7 +723,7 @@ export default function SettingsPage() {
             {/* Access Limitations */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" />
+                <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                 Access Limitations
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -728,7 +741,7 @@ export default function SettingsPage() {
             {/* Training Usage Policy */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <Lock className="h-4 w-4 text-primary" />
+                <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                 AI Training Usage Policy
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -756,7 +769,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Usage Section */}
-        <section className="space-y-4">
+        <section id="usage" className="space-y-4">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
             Usage
           </h2>
@@ -789,36 +802,19 @@ export default function SettingsPage() {
                 </div>
                 )}
                 {!usageData.unlimited && usageData.percentUsed >= 80 && (
-                  <div className={cn(
-                    "p-3 rounded-lg border space-y-2 animate-fade-in",
-                    usageData.percentUsed >= 100
-                      ? "bg-destructive/10 border-destructive/20"
-                      : "bg-yellow-500/10 border-yellow-500/20"
-                  )}>
+                  <div 
+                    className="p-3 rounded-lg border space-y-2 animate-fade-in border-border"
+                    style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                  >
                     <div className="flex items-start gap-2">
-                      <AlertTriangle className={cn(
-                        "h-4 w-4 flex-shrink-0 mt-0.5",
-                        usageData.percentUsed >= 100
-                          ? "text-destructive"
-                          : "text-yellow-600 dark:text-yellow-400"
-                      )} />
+                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-[#221F20]" />
                       <div className="flex-1 space-y-1">
-                        <p className={cn(
-                          "text-sm font-medium",
-                          usageData.percentUsed >= 100
-                            ? "text-destructive"
-                            : "text-yellow-900 dark:text-yellow-100"
-                        )}>
+                        <p className="text-sm font-medium text-[#221F20]">
                           {usageData.percentUsed >= 100 
                             ? "Usage limit reached"
                             : "Approaching usage limit"}
                         </p>
-                        <p className={cn(
-                          "text-xs leading-relaxed",
-                          usageData.percentUsed >= 100
-                            ? "text-destructive/90"
-                            : "text-yellow-800 dark:text-yellow-200"
-                        )}>
+                        <p className="text-xs leading-relaxed text-[#221F20]/80">
                           {usageData.percentUsed >= 100 
                             ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages to avoid service interruption."
                             : usageData.unlimited

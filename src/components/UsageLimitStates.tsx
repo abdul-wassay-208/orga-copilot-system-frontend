@@ -1,4 +1,4 @@
-import { AlertTriangle, XCircle, Clock, Lock } from "lucide-react";
+import { AlertTriangle, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UsageBannerProps {
@@ -56,15 +56,13 @@ export function UsageBanner({
 
   return (
     <div
-      className={cn(
-        "flex items-start gap-3 px-4 py-3 rounded-lg border animate-fade-in",
-        config.bg
-      )}
+      className="flex items-start gap-3 px-4 py-3 rounded-lg border animate-fade-in border-border"
+      style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
     >
-      <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5", config.iconColor)} />
+      <Icon className="h-5 w-5 flex-shrink-0 mt-0.5 text-[#221F20]" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">{config.title}</p>
-        <p className="text-sm text-muted-foreground mt-0.5">{config.message}</p>
+        <p className="text-sm font-medium text-[#221F20]">{config.title}</p>
+        <p className="text-sm text-[#221F20]/80 mt-0.5">{config.message}</p>
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         {config.showUpgrade && onUpgrade && (

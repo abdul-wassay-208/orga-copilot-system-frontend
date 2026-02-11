@@ -201,9 +201,12 @@ export default function SignupPage() {
       } else if (responseData?.message) {
         // Single error message
         const errorMessage = responseData.message;
+        const errorField = responseData.field;
         
-        // Try to map to specific fields
-        if (errorMessage.toLowerCase().includes("email")) {
+        // Use field from backend if provided, otherwise try to infer from message
+        if (errorField) {
+          newErrors[errorField] = errorMessage;
+        } else if (errorMessage.toLowerCase().includes("email")) {
           newErrors.email = errorMessage;
         } else if (errorMessage.toLowerCase().includes("password")) {
           newErrors.password = errorMessage;

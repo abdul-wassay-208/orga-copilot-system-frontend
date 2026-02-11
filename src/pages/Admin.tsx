@@ -31,11 +31,20 @@ interface User {
   id: string | null;
   name: string;
   email: string;
-  role: "admin" | "employee";
+  role: "admin" | "employee" | "super_admin";
   status: "active" | "pending";
   messagesUsed?: number;
   messagesLimit?: number;
   invitationTokenId?: number;
+}
+
+/** Backend uses Long.MAX_VALUE for unlimited; show ∞ in UI */
+const UNLIMITED_LIMIT_THRESHOLD = 1e18;
+function formatMessageLimit(limit: number): string {
+  return limit >= UNLIMITED_LIMIT_THRESHOLD ? "∞" : limit.toLocaleString();
+}
+function isUnlimitedLimit(limit: number): boolean {
+  return limit >= UNLIMITED_LIMIT_THRESHOLD;
 }
 
 
@@ -239,16 +248,25 @@ function UsersTab() {
       setTotalPages(responseData.totalPages || 0);
       setTotalElements(responseData.totalElements || 0);
       
-      const transformed: User[] = backendUsers.map((u: any) => ({
-        id: u.id ? String(u.id) : null,
-        name: u.fullName || u.email.split("@")[0],
-        email: u.email,
-        role: u.role === "TENANT_ADMIN" ? "admin" : "employee",
-        status: u.status === "PENDING" ? "pending" : "active",
-        messagesUsed: u.messagesUsed || 0,
-        messagesLimit: u.messagesLimit || u.maxMessagesPerMonth || 500, // Use API value, fallback to 500
-        invitationTokenId: u.invitationTokenId,
-      }));
+      const transformed: User[] = backendUsers.map((u: any) => {
+        // Map backend role to frontend role
+        let role: "admin" | "employee" | "super_admin" = "employee";
+        if (u.role === "SUPER_ADMIN") {
+          role = "super_admin";
+        } else if (u.role === "TENANT_ADMIN") {
+          role = "admin";
+        }
+        return {
+          id: u.id ? String(u.id) : null,
+          name: u.fullName || u.email.split("@")[0],
+          email: u.email,
+          role,
+          status: u.status === "PENDING" ? "pending" : "active",
+          messagesUsed: u.messagesUsed || 0,
+          messagesLimit: u.messagesLimit || u.maxMessagesPerMonth || 500, // Use API value, fallback to 500
+          invitationTokenId: u.invitationTokenId,
+        };
+      });
       
       setUsers(transformed);
     } catch (error: any) {
@@ -322,7 +340,7 @@ function UsersTab() {
           <div className="flex items-center gap-3">
             <div className="w-20 h-20 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
               <img
-                src={theme === "dark" ? "/assets/Invite-user.svg" : "/assets/Invite-user-dark.svg"}
+                src={"/assets/Invite-user-Light.svg"}
                 alt="Invite user"
                 className="h-14 w-14 object-contain"
               />
@@ -344,7 +362,8 @@ function UsersTab() {
             onClick={() => !isFreePlan && setShowInviteDialog(true)}
             disabled={isFreePlan}
             title={isFreePlan ? "Upgrade to Basic or Pro to invite team members." : undefined}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 transition-all duration-200 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
           >
             <Plus className="h-4 w-4" />
             Invite user
@@ -415,11 +434,11 @@ function UsersTab() {
               {/* Usage bar - numbers only, no content */}
               {user.messagesUsed !== undefined && user.messagesLimit !== undefined && (
                 <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
-                  <span>{user.messagesUsed} / {user.messagesLimit}</span>
+                  <span>{user.messagesUsed.toLocaleString()} / {formatMessageLimit(user.messagesLimit)}</span>
                   <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div 
                       className="h-full rounded-full progress-gradient-fill" 
-                      style={{ width: `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
+                      style={{ width: isUnlimitedLimit(user.messagesLimit) ? "0%" : `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
                     />
                   </div>
                 </div>
@@ -437,12 +456,14 @@ function UsersTab() {
               <span 
                 className={cn(
                   "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
-                  user.role === "admin" 
+                  user.role === "super_admin"
+                    ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                    : user.role === "admin" 
                     ? "bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground"
                 )}
               >
-                {user.role === "admin" ? "Admin" : "Employee"}
+                {user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Admin" : "Employee"}
               </span>
               {/* Hide 3-dots menu for current user (admin cannot remove themselves) */}
               {user.email !== currentUserEmail && (
@@ -709,7 +730,7 @@ function TransactionHistoryTab() {
       <div className="text-center py-16 space-y-4">
         <div className="mx-auto w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden">
           <img
-            src={theme === "dark" ? "/assets/Transaction%20history.svg" : "/assets/Transaction%20history-Light.svg"}
+            src={"/assets/Transaction%20history-Light.svg"}
             alt="Transaction history"
             className="h-14 w-14 object-contain"
           />
@@ -905,7 +926,7 @@ function BillingTab() {
   const monthlyEstimate = subscription.pricePerUser > 0 
     ? subscription.pricePerUser * subscription.activeUsers 
     : subscription.planPrice; // Use fixed plan price if not per-user
-  const usagePercent = subscription.usage.limit > 0 
+  const usagePercent = !isUnlimitedLimit(subscription.usage.limit) && subscription.usage.limit > 0 
     ? (subscription.usage.current / subscription.usage.limit) * 100 
     : 0;
 
@@ -1025,7 +1046,7 @@ function BillingTab() {
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-foreground">Usage this period</p>
           <p className="text-sm font-semibold text-foreground">
-            {subscription.usage.current.toLocaleString()} / {subscription.usage.limit.toLocaleString()}
+            {subscription.usage.current.toLocaleString()} / {formatMessageLimit(subscription.usage.limit)}
           </p>
         </div>
         <div className="h-2.5 rounded-full bg-muted overflow-hidden">
@@ -1034,10 +1055,10 @@ function BillingTab() {
               "h-full rounded-full transition-all",
               usagePercent >= 100 ? "bg-destructive" : usagePercent > 90 ? "bg-destructive" : usagePercent > 75 ? "bg-yellow-500" : "progress-gradient-fill"
             )}
-            style={{ width: `${Math.min(usagePercent, 100)}%` }}
+            style={{ width: isUnlimitedLimit(subscription.usage.limit) ? "0%" : `${Math.min(usagePercent, 100)}%` }}
           />
         </div>
-        {usagePercent > 75 && (
+        {!isUnlimitedLimit(subscription.usage.limit) && usagePercent > 75 && (
           <p className={cn(
             "text-xs flex items-center gap-1.5",
             usagePercent >= 100 ? "text-destructive" : usagePercent > 90 ? "text-destructive" : "text-yellow-600 dark:text-yellow-400"

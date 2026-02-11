@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Check, Lock } from "lucide-react";
+import { ArrowLeft, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -332,7 +332,7 @@ export default function UpdatePaymentMethodPage() {
 
           {/* Security Note */}
           <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5">
-            <Lock className="h-3 w-3" />
+            <img src="/assets/lock.svg" alt="Lock" className="h-3 w-3 dark:brightness-0 dark:invert" />
             Your payment information is encrypted and secure.
           </p>
         </form>

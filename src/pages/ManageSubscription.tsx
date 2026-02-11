@@ -6,6 +6,7 @@ import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { CouponCheckoutPrompt } from "@/components/CouponCheckoutPrompt";
 import { adminClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,47 +68,36 @@ type Subscription = IndividualSubscription | OrganizationSubscription;
 export default function ManageSubscriptionPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [checkingRole, setCheckingRole] = useState(true);
-  const redirectedNonAdmin = useRef(false);
+  const { user } = useAuth();
+  const [userRole, setUserRole] = useState<string | null>(user?.role || null);
+  const [checkingRole, setCheckingRole] = useState(false); // No need to check, ProtectedRoute already did
 
+  // Use role from auth context if available, otherwise fetch it
   useEffect(() => {
-    checkAccess();
-  }, []);
+    if (user?.role) {
+      setUserRole(user.role);
+      setCheckingRole(false);
+    } else {
+      // Fallback: fetch role if not in context (shouldn't happen due to ProtectedRoute)
+      checkAccess();
+    }
+  }, [user]);
 
   const checkAccess = async () => {
     try {
+      setCheckingRole(true);
       const response = await adminClient.get("/api/auth/me");
       const role = response.data?.role;
       setUserRole(role);
-      
-      if (role !== "TENANT_ADMIN" && role !== "SUPER_ADMIN") {
-        if (!redirectedNonAdmin.current) {
-          redirectedNonAdmin.current = true;
-          toast.error("Billing is managed by your organization's administrator. Please contact them for payment or subscription questions.");
-          navigate("/chat", { replace: true });
-        }
-        return;
-      }
     } catch (error: any) {
       console.error("Failed to verify access:", error);
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        if (!redirectedNonAdmin.current) {
-          redirectedNonAdmin.current = true;
-          toast.error("Please log in to continue.");
-          navigate("/login", { replace: true });
-        }
-      } else if (!redirectedNonAdmin.current) {
-        redirectedNonAdmin.current = true;
-        toast.error("Billing is managed by your organization's administrator.");
-        navigate("/chat", { replace: true });
-      }
+      // Don't redirect on error - ProtectedRoute already handles auth/role checks
+      // Just log and continue - if user shouldn't be here, ProtectedRoute will handle it
     } finally {
       setCheckingRole(false);
     }
   };
   
-  // Mock: In real app, this would come from auth context
   const isOrganizationAdmin = userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN";
   
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -389,7 +379,7 @@ export default function ManageSubscriptionPage() {
     }
   };
   
-  if (checkingRole || loading || !subscription) {
+  if (loading || !subscription) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -404,7 +394,7 @@ export default function ManageSubscriptionPage() {
         <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
           <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
             <button
-              onClick={() => navigate("/chat")}
+              onClick={() => navigate("/admin?tab=billing")}
               className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />

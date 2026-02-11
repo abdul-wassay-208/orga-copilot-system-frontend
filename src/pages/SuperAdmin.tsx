@@ -18,7 +18,6 @@ import {
   X,
   AlertTriangle,
   Globe,
-  Lock,
   ChevronLeft,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
@@ -147,7 +146,14 @@ export default function SuperAdminPage() {
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate("/chat")}
+              onClick={() => {
+                // Try to go back in history, otherwise go to admin (Super Admins likely came from Admin page)
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate("/admin");
+                }
+              }}
               className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -215,6 +221,7 @@ function TenantsTab() {
   const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
+  const [newTenantEmail, setNewTenantEmail] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -288,21 +295,23 @@ function TenantsTab() {
   };
 
   const handleAddTenant = async () => {
-    if (!newTenantName.trim()) return;
+    if (!newTenantName.trim() || !newTenantEmail.trim()) return;
     setIsAdding(true);
     
     try {
       const response = await adminClient.post("/api/admin/super/tenants", {
         name: newTenantName.trim(),
+        email: newTenantEmail.trim(),
       });
       
-      toast.success("Tenant created successfully");
+      toast.success(response.data?.message || "Organization created successfully. Invitation email sent.");
       setShowAddDialog(false);
       setNewTenantName("");
+      setNewTenantEmail("");
       await loadTenants(currentPage);
     } catch (error: any) {
       console.error("Failed to create tenant:", error);
-      toast.error(error?.response?.data?.message || "Failed to create tenant");
+      toast.error(error?.response?.data?.message || "Failed to create organization");
     } finally {
       setIsAdding(false);
     }
@@ -437,7 +446,7 @@ function TenantsTab() {
           <div className="flex items-center gap-3">
             <div className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden">
               <img
-                src={theme === "dark" ? "/assets/Tenants.svg" : "/assets/Tenants-dark.svg"}
+                src={"/assets/Tenants-Light.svg" }
                 alt="Total Tenants"
                 className="h-14 w-14 object-contain"
               />
@@ -452,7 +461,7 @@ function TenantsTab() {
           <div className="flex items-center gap-3">
             <div className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden">
               <img
-                src={theme === "dark" ? "/assets/Active.svg" : "/assets/Active-Light.svg"}
+                src={"/assets/Active-Light.svg"}
                 alt="Active"
                 className="h-14 w-14 object-contain"
               />
@@ -469,7 +478,7 @@ function TenantsTab() {
           <div className="flex items-center gap-3">
             <div className="w-20 h-20 rounded-lg flex items-center justify-center overflow-hidden">
               <img
-                src={theme === "dark" ? "/assets/Total-users.svg" : "/assets/Total-users-dark.svg"}
+                src={"/assets/Total users-Light.svg"}
                 alt="Total Users"
                 className="h-14 w-14 object-contain"
               />
@@ -486,7 +495,7 @@ function TenantsTab() {
           <div className="flex items-center gap-3">
             <div className="w-20 h-20 rounded-lg  flex items-center justify-center overflow-hidden">
               <img
-                src={theme === "dark" ? "/assets/Start-chat.svg" : "/assets/Start-chat-dark.svg"}
+                src={"/assets/meesage used-Light.svg"}
                 alt="Messages Used"
                 className="h-14 w-14 object-contain"
               />
@@ -509,7 +518,8 @@ function TenantsTab() {
         </p>
         <button
           onClick={() => setShowAddDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 transition-all duration-200"
+          style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
         >
           <Plus className="h-4 w-4" />
           Add Tenant
@@ -710,7 +720,7 @@ function TenantsTab() {
                     "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
                   )}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 mt-0.5" />
                   <span>Previous</span>
                 </button>
               </PaginationItem>
@@ -764,12 +774,11 @@ function TenantsTab() {
                     }
                   }}
                   disabled={currentPage >= totalPages - 1}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-                  )}
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-[#221F20] hover:opacity-90 disabled:pointer-events-none disabled:opacity-50 transition-all duration-200"
+                  style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
                 >
                   <span>Next</span>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 mt-0.5" />
                 </button>
               </PaginationItem>
             </PaginationContent>
@@ -804,21 +813,35 @@ function TenantsTab() {
                   placeholder="Acme Inc"
                   className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
                 />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Admin email</label>
+                <input
+                  type="email"
+                  value={newTenantEmail}
+                  onChange={(e) => setNewTenantEmail(e.target.value)}
+                  placeholder="admin@company.com"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
+                />
                 <p className="text-xs text-muted-foreground">
-                  Organization names can be duplicated. Each organization is identified by its unique ID.
+                  An invitation email will be sent to this address. The user will set their password and can then proceed with payment setup.
                 </p>
               </div>
             </div>
             <div className="flex gap-3 justify-end pt-2">
               <button
-                onClick={() => setShowAddDialog(false)}
+                onClick={() => {
+                  setShowAddDialog(false);
+                  setNewTenantName("");
+                  setNewTenantEmail("");
+                }}
                 className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddTenant}
-                disabled={!newTenantName.trim() || isAdding}
+                disabled={!newTenantName.trim() || !newTenantEmail.trim() || isAdding}
                 className="px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
@@ -916,15 +939,18 @@ function UsageOverviewTab() {
     <div className="space-y-6">
       {/* Usage alerts: 90%+ (notify user, admin, superadmin) */}
       {tenantsAt90.length > 0 && (
-        <div className="p-5 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
-          <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        <div 
+          className="p-5 rounded-xl border border-border space-y-2"
+          style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+        >
+          <h3 className="text-sm font-medium text-[#221F20] flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-[#221F20]" />
             Usage alerts (90%+ of plan limit)
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-[#221F20]/80">
             These organizations are at or above 90% of their message limit. Users see an upgrade prompt; ensure admins are aware.
           </p>
-          <ul className="text-sm text-foreground space-y-1">
+          <ul className="text-sm text-[#221F20] space-y-1">
             {tenantsAt90.map((t) => (
               <li key={t.name}>
                 {t.name}: {t.usage}/{formatMessageLimit(t.limit)} ({t.percent}%)
@@ -984,7 +1010,7 @@ function UsageOverviewTab() {
 
       {/* Privacy note */}
       <div className="flex items-center gap-2.5 p-4 rounded-xl bg-primary/5 border border-primary/10">
-        <Lock className="h-4 w-4 text-primary flex-shrink-0" />
+        <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert flex-shrink-0" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
         <p className="text-sm text-foreground/80">
           Only aggregate usage numbers are shown. Conversation content is never accessible.
         </p>
@@ -1000,7 +1026,6 @@ interface CouponItem {
   assignToEmail: string | null;
   expiresAt: string | null;
   used: boolean;
-  usedAt: string | null;
   createdAt: string | null;
   status: "active" | "used" | "expired";
 }
@@ -1043,7 +1068,6 @@ function CouponsTab() {
         assignToEmail: c.assignToEmail ?? null,
         expiresAt: c.expiresAt ?? null,
         used: !!c.used,
-        usedAt: c.usedAt ?? null,
         createdAt: c.createdAt ?? null,
         status: c.status ?? (c.used ? "used" : "active"),
       })));
@@ -1136,7 +1160,8 @@ function CouponsTab() {
         <p className="text-sm text-muted-foreground">Create coupons for Basic or Pro plans. One coupon per user, non-renewable.</p>
         <button
           onClick={openModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 transition-all duration-200"
+          style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
         >
           <Plus className="h-4 w-4" />
           Create coupon
@@ -1184,7 +1209,8 @@ function CouponsTab() {
               <button
                 onClick={handleCreateCoupon}
                 disabled={creating || !assignToEmail.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all duration-200"
+                style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
               >
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Create coupon
@@ -1210,30 +1236,26 @@ function CouponsTab() {
         </div>
       )}
 
-      {/* Search coupons */}
-      <div className="p-4 rounded-xl bg-card border border-border">
-        <input
-          type="text"
-          placeholder="Search by code, email, or plan..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(0);
-          }}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
-        />
-      </div>
-
       {/* All coupons list */}
       <div className="rounded-xl border border-border overflow-hidden">
-        <h3 className="text-sm font-medium text-foreground px-4 py-3 border-b border-border bg-muted/30">
-          All coupons
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
+          <h3 className="text-sm font-medium text-foreground">All coupons</h3>
           {totalElements > 0 && (
-            <span className="ml-2 text-muted-foreground font-normal">
+            <span className="text-muted-foreground font-normal text-xs sm:text-sm">
               ({totalElements} total · Page {currentPage + 1} of {totalPages || 1})
             </span>
           )}
-        </h3>
+          <input
+            type="text"
+            placeholder="Search by code, email, or plan..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="sm:ml-auto w-full sm:w-64 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+        </div>
         {loadingCoupons ? (
           <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1254,7 +1276,6 @@ function CouponsTab() {
                     <th className="text-left font-medium text-foreground px-4 py-3">Assigned to</th>
                     <th className="text-left font-medium text-foreground px-4 py-3">Status</th>
                     <th className="text-left font-medium text-foreground px-4 py-3">Expires</th>
-                    <th className="text-left font-medium text-foreground px-4 py-3">Used at</th>
                     <th className="text-left font-medium text-foreground px-4 py-3">Created</th>
                     <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
                   </tr>
@@ -1267,7 +1288,6 @@ function CouponsTab() {
                       <td className="px-4 py-3 text-muted-foreground">{c.assignToEmail ?? "—"}</td>
                       <td className="px-4 py-3">{statusBadge(c.status)}</td>
                       <td className="px-4 py-3 text-muted-foreground">{c.expiresAt ? new Date(c.expiresAt).toLocaleString() : "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{c.usedAt ? new Date(c.usedAt).toLocaleString() : "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground">{c.createdAt ? new Date(c.createdAt).toLocaleString() : "—"}</td>
                       <td className="px-4 py-3 text-right">
                         {c.status === "active" ? (
@@ -1324,7 +1344,7 @@ function CouponsTab() {
                   disabled={currentPage === 0}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 mt-0.5" />
                   Previous
                 </button>
                 <span className="text-sm text-muted-foreground">
@@ -1333,10 +1353,11 @@ function CouponsTab() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={currentPage >= totalPages - 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
                 >
                   Next
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 mt-0.5" />
                 </button>
               </div>
             )}
@@ -1517,7 +1538,7 @@ function SuperAdminUsersTab() {
               disabled={currentPage === 0}
               className="flex gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 mt-0.5" />
               Previous
             </button>
             <span className="text-sm text-muted-foreground">
@@ -1526,10 +1547,11 @@ function SuperAdminUsersTab() {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
-              className="flex gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex gap-1 px-3 py-1.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
             >
               Next
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4 mt-0.5" />
             </button>
           </div>
         )}
@@ -1617,7 +1639,7 @@ function GlobalKnowledgeTab() {
     <div className="space-y-6">
       {/* Privacy note */}
       <div className="flex items-start gap-2.5 p-4 rounded-xl bg-primary/5 border border-primary/10">
-        <Lock className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+        <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert mt-0.5 flex-shrink-0" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
         <p className="text-sm text-foreground/80">
           Knowledge base content helps guide AI responses but does not override user privacy.
           Admins cannot view conversation content.

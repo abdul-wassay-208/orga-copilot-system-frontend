@@ -1,4 +1,4 @@
-import { Lock, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +23,7 @@ export function EmptyState({ onSelectPrompt, disabled = false, showPrompts = fal
         {/* Icon */}
         <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center animate-scale-in overflow-hidden">
           <img
-            src={theme === "dark" ? "/assets/Start-chat.svg" : "/assets/Start-chat-dark.svg"}
+            src={"/assets/Start chat-Light.svg"}
             alt="Start chat"
             className="h-20 w-800 object-contain"
           />

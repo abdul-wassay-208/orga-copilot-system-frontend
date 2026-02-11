@@ -6,7 +6,7 @@ import { EmptyState } from "./EmptyState";
 import { ShareConversationModal } from "./ShareConversationModal";
 import { DeleteChatModal } from "./DeleteChatModal";
 import { Conversation, Message } from "@/types/chat";
-import { Menu, Lock, Download, AlertTriangle, X, Share2, LogOut } from "lucide-react";
+import { Menu, Download, AlertTriangle, X, Share2, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -940,7 +940,7 @@ export function ChatLayout() {
             </div>
             <div className="flex items-center gap-2">
               <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/5 border border-primary/10">
-                <Lock className="h-3 w-3 text-primary" />
+                <img src="/assets/lock.svg" alt="Lock" className="h-3 w-3 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                 <span className="text-xs text-primary font-medium">Private</span>
               </div>
               <button
@@ -1030,36 +1030,19 @@ export function ChatLayout() {
             )}
             {/* Usage Warning Banner */}
             {usageData && !isFreeUser && !usageData.unlimited && (usageData.percentUsed >= 80 || usageData.usageAlert90) && !dismissedWarning && (
-              <div className={cn(
-                "mx-4 md:mx-6 mt-4 p-3 rounded-lg border space-y-2 animate-fade-in",
-                usageData.percentUsed >= 100
-                  ? "bg-destructive/10 border-destructive/20"
-                  : "bg-yellow-500/10 border-yellow-500/20"
-              )}>
+              <div 
+                className="mx-4 md:mx-6 mt-4 p-3 rounded-lg border space-y-2 animate-fade-in border-border"
+                style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+              >
                 <div className="flex items-start gap-2">
-                  <AlertTriangle className={cn(
-                    "h-4 w-4 flex-shrink-0 mt-0.5",
-                    usageData.percentUsed >= 100
-                      ? "text-destructive"
-                      : "text-yellow-600 dark:text-yellow-400"
-                  )} />
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-[#221F20]" />
                   <div className="flex-1 space-y-1 min-w-0">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      usageData.percentUsed >= 100
-                        ? "text-destructive"
-                        : "text-yellow-900 dark:text-yellow-100"
-                    )}>
+                    <p className="text-sm font-medium text-[#221F20]">
                       {usageData.percentUsed >= 100 
                         ? "Usage limit reached"
                         : "Approaching usage limit"}
                     </p>
-                    <p className={cn(
-                      "text-xs leading-relaxed",
-                      usageData.percentUsed >= 100
-                        ? "text-destructive/90"
-                        : "text-yellow-800 dark:text-yellow-200"
-                    )}>
+                    <p className="text-xs leading-relaxed text-[#221F20]/80">
                       {usageData.percentUsed >= 100 
                         ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages."
                         : usageData.unlimited
@@ -1067,15 +1050,15 @@ export function ChatLayout() {
                         : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
                     </p>
                     <Link
-                      to="/billing"
-                      className="text-xs font-medium text-primary hover:text-primary/80 underline"
+                      to={usageData.percentUsed >= 100 ? "/billing" : "/settings#usage"}
+                      className="text-xs font-medium text-[#221F20] hover:text-[#221F20]/80 underline"
                     >
                       {usageData.percentUsed >= 100 ? "Upgrade plan" : "View usage details"}
                     </Link>
                   </div>
                   <button
                     onClick={() => setDismissedWarning(true)}
-                    className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                    className="p-1 rounded hover:bg-[#221F20]/10 text-[#221F20] hover:text-[#221F20]/80 transition-colors flex-shrink-0"
                     aria-label="Dismiss warning"
                   >
                     <X className="h-4 w-4" />
@@ -1215,17 +1198,20 @@ export function ChatLayout() {
       {showUsage90Alert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowUsage90Alert(false)} />
-          <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4">
-            <p className="text-sm font-medium text-foreground">
+          <div 
+            className="relative border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4"
+            style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+          >
+            <p className="text-sm font-medium text-[#221F20]">
               {usageData?.percentUsed >= 100 ? "Message limit reached" : "Approaching your message limit"}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-[#221F20]/80">
               {usageData?.percentUsed >= 100
                 ? "You've reached 100% of your plan's message limit. Consider upgrading to avoid interruption."
                 : "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption."}
             </p>
             <div className="flex gap-2">
-              <Link to="/billing" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
+              <Link to="/settings#usage" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">View Usage</Link>
               <button onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Dismiss</button>
             </div>
           </div>

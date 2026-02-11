@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { ChatMessage } from "@/components/ChatMessage";
 import { Conversation, Message } from "@/types/chat";
 import { apiClient } from "@/lib/api-client";
-import { Loader2, Lock, LogIn } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -114,7 +114,7 @@ export default function SharedConversationPage() {
       <div className="h-14 border-b border-border flex items-center justify-between px-4 md:px-6 bg-background/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/5 border border-primary/10">
-            <Lock className="h-3 w-3 text-primary" />
+            <img src="/assets/lock.svg" alt="Lock" className="h-3 w-3 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
             <span className="text-xs text-primary font-medium">Shared</span>
           </div>
           <h2 className="text-sm font-medium text-foreground truncate max-w-[180px] md:max-w-md">
