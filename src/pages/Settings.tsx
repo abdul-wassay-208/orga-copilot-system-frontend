@@ -660,10 +660,10 @@ export default function SettingsPage() {
                 onClick={handleToggle2FA}
                 disabled={isToggling2FA}
                 className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 text-[#221F20] hover:opacity-90",
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white hover:opacity-90",
                   isToggling2FA && "opacity-50 cursor-not-allowed"
                 )}
-                style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
               >
                 {isToggling2FA ? (
                   <>
@@ -803,8 +803,8 @@ export default function SettingsPage() {
                 )}
                 {!usageData.unlimited && usageData.percentUsed >= 80 && (
                   <div 
-                    className="p-3 rounded-lg border space-y-2 animate-fade-in border-border"
-                    style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                    className="p-3 rounded-full border space-y-2 animate-fade-in border-border"
+                    style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
                   >
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-[#221F20]" />

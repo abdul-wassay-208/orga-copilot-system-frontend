@@ -518,8 +518,8 @@ function TenantsTab() {
         </p>
         <button
           onClick={() => setShowAddDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 transition-all duration-200"
-          style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200"
+          style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
         >
           <Plus className="h-4 w-4" />
           Add Tenant
@@ -774,8 +774,8 @@ function TenantsTab() {
                     }
                   }}
                   disabled={currentPage >= totalPages - 1}
-                  className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-[#221F20] hover:opacity-90 disabled:pointer-events-none disabled:opacity-50 transition-all duration-200"
-                  style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:pointer-events-none disabled:opacity-50 transition-all duration-200"
+                  style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
                 >
                   <span>Next</span>
                   <ChevronRight className="h-4 w-4 mt-0.5" />
@@ -1160,8 +1160,8 @@ function CouponsTab() {
         <p className="text-sm text-muted-foreground">Create coupons for Basic or Pro plans. One coupon per user, non-renewable.</p>
         <button
           onClick={openModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 transition-all duration-200"
-          style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200"
+          style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
         >
           <Plus className="h-4 w-4" />
           Create coupon
@@ -1209,8 +1209,8 @@ function CouponsTab() {
               <button
                 onClick={handleCreateCoupon}
                 disabled={creating || !assignToEmail.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all duration-200"
-                style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all duration-200"
+                style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
               >
                 {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Create coupon
@@ -1353,8 +1353,8 @@ function CouponsTab() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={currentPage >= totalPages - 1}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                  style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
                 >
                   Next
                   <ChevronRight className="h-4 w-4 mt-0.5" />
@@ -1547,8 +1547,8 @@ function SuperAdminUsersTab() {
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={currentPage >= totalPages - 1}
-              className="flex gap-1 px-3 py-1.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-              style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+              className="flex gap-1 px-3 py-1.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
             >
               Next
               <ChevronRight className="h-4 w-4 mt-0.5" />

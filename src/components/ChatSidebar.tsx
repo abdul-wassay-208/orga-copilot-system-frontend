@@ -101,7 +101,7 @@ export function ChatSidebar({
             <img
               src={theme === "dark" ? "/assets/evo-logo-dark.svg" : "/assets/evo-logo.svg"}
               alt="Evo Associate"
-              className="h-11 w-200 object-contain flex-shrink-0"
+              className="h-8 w-100 object-contain flex-shrink-0"
             />
           </div>
           <button
@@ -114,8 +114,8 @@ export function ChatSidebar({
         </div>
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium shadow-sm border text-[#221F20] hover:opacity-90"
-          style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-full transition-all duration-200 text-sm font-medium shadow-sm border text-white hover:opacity-90 mt-[1.2rem]"
+          style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
         >
           <Plus className="h-4 w-4" />
           New Chat

@@ -362,8 +362,8 @@ function UsersTab() {
             onClick={() => !isFreePlan && setShowInviteDialog(true)}
             disabled={isFreePlan}
             title={isFreePlan ? "Upgrade to Basic or Pro to invite team members." : undefined}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-[#221F20] text-sm font-medium hover:opacity-90 transition-all duration-200 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
           >
             <Plus className="h-4 w-4" />
             Invite user

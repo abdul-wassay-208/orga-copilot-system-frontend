@@ -123,7 +123,8 @@ export default function SharedConversationPage() {
         </div>
         <button
           onClick={handleContinueChat}
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+          className="px-4 py-2 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200 flex items-center gap-2"
+          style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
         >
           <LogIn className="h-4 w-4" />
           Login

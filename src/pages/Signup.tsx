@@ -431,10 +431,11 @@ export default function SignupPage() {
               type="submit"
               disabled={isLoading || otpCode.length !== 6}
               className={cn(
-                "w-full py-2.5 rounded-lg font-medium text-sm transition-all",
-                "bg-primary text-primary-foreground hover:bg-primary/90",
+                "w-full py-2.5 rounded-full font-medium text-sm transition-all duration-200",
+                "text-white hover:opacity-90",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
+              style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -835,10 +836,11 @@ export default function SignupPage() {
             type="submit"
             disabled={isLoading}
             className={cn(
-              "w-full py-2.5 rounded-lg font-medium text-sm transition-all",
-              "bg-primary text-primary-foreground hover:bg-primary/90",
+              "w-full py-2.5 rounded-full font-medium text-sm transition-all duration-200",
+              "text-white hover:opacity-90",
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
+            style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">

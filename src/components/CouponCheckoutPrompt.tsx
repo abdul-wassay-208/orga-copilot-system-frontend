@@ -88,7 +88,7 @@ export function CouponCheckoutPrompt({
               onClick={handleNoCoupon}
               disabled={disabled || proceeding}
               className={cn(
-                "flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors",
+                "flex-1 py-2.5 rounded-full font-medium text-sm transition-colors",
                 "border border-chat-input-border bg-chat-input-bg text-foreground hover:bg-chat-hover",
                 (disabled || proceeding) && "opacity-50 cursor-not-allowed"
               )}
@@ -104,10 +104,11 @@ export function CouponCheckoutPrompt({
               onClick={() => setStep("input")}
               disabled={disabled || proceeding}
               className={cn(
-                "flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors",
-                "bg-primary text-primary-foreground hover:bg-primary/90",
+                "flex-1 py-2.5 rounded-full font-medium text-sm transition-all duration-200",
+                "text-white hover:opacity-90",
                 (disabled || proceeding) && "opacity-50 cursor-not-allowed"
               )}
+              style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
             >
               Yes, I have a coupon
             </button>
@@ -164,10 +165,11 @@ export function CouponCheckoutPrompt({
               onClick={handleProceedWithCoupon}
               disabled={!couponValid || proceeding}
               className={cn(
-                "flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors",
-                "bg-primary text-primary-foreground hover:bg-primary/90",
+                "flex-1 py-2.5 rounded-full font-medium text-sm transition-all duration-200",
+                "text-white hover:opacity-90",
                 (!couponValid || proceeding) && "opacity-50 cursor-not-allowed"
               )}
+              style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
             >
               {proceeding ? (
                 <Loader2 className="h-4 w-4 animate-spin mx-auto" />

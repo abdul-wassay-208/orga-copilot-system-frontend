@@ -1032,7 +1032,7 @@ export function ChatLayout() {
             {usageData && !isFreeUser && !usageData.unlimited && (usageData.percentUsed >= 80 || usageData.usageAlert90) && !dismissedWarning && (
               <div 
                 className="mx-4 md:mx-6 mt-4 p-3 rounded-lg border space-y-2 animate-fade-in border-border"
-                style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+                style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
               >
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-[#221F20]" />
@@ -1182,7 +1182,7 @@ export function ChatLayout() {
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowConversationLimitReached(false); handleNewChat(); }}
-                className="flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border
+                className="flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-200 border
                   bg-[#221F20] text-white hover:bg-[#FFFFFF] hover:text-[#221F20] hover:border-[#221F20]/30
                   dark:bg-[#FFFFFF] dark:text-[#221F20] dark:border-[#221F20]/20 dark:hover:bg-white/90 dark:hover:ring-2 dark:hover:ring-white/20"
               >
@@ -1199,8 +1199,8 @@ export function ChatLayout() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowUsage90Alert(false)} />
           <div 
-            className="relative border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 space-y-4"
-            style={{ background: 'linear-gradient(0deg, #FFEACD 0%, #FFD4E1 100%)' }}
+            className="relative border border-border rounded-full shadow-lg p-6 max-w-sm mx-4 space-y-4"
+            style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
           >
             <p className="text-sm font-medium text-[#221F20]">
               {usageData?.percentUsed >= 100 ? "Message limit reached" : "Approaching your message limit"}
