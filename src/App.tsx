@@ -19,6 +19,7 @@ import ManageSubscription from "./pages/ManageSubscription";
 import UpdatePaymentMethod from "./pages/UpdatePaymentMethod";
 import SharedConversation from "./pages/SharedConversation";
 import NotFound from "./pages/NotFound";
+import LandingPage from "./pages/LandingPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -76,7 +77,8 @@ const App = () => (
           <Route path="/index.html" element={<IndexHtmlHandler />} />
           
           {/* Public routes - no auth required */}
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/home" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

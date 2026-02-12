@@ -243,7 +243,7 @@ export default function UpdatePaymentMethodPage() {
                 placeholder="1234 5678 9012 3456"
                 disabled={formState === "loading"}
               />
-              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+              <img src="/assets/lock.svg" alt="Lock" className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 dark:brightness-0 dark:invert opacity-50" />
             </div>
             {errors.cardNumber && (
               <p className="text-xs text-destructive">{errors.cardNumber}</p>

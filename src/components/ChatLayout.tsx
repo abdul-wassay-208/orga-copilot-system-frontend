@@ -100,8 +100,8 @@ export function ChatLayout() {
       if (data.percentUsed < 80) {
         setDismissedWarning(false);
       }
-      // Show 90% upgrade alert popup (user, admin, superadmin see this)
-      if (data.usageAlert90) {
+      // Show usage alert popup at 80%, 90%, or 100% (user, admin, superadmin see this)
+      if (data.percentUsed >= 80 || data.usageAlert90) {
         setShowUsage90Alert(true);
       }
     } catch (error: any) {
@@ -1199,19 +1199,25 @@ export function ChatLayout() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowUsage90Alert(false)} />
           <div 
-            className="relative border border-border rounded-full shadow-lg p-6 max-w-sm mx-4 space-y-4"
+            className="relative border border-border shadow-lg p-6 max-w-sm mx-4 space-y-4"
             style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
           >
-            <p className="text-sm font-medium text-[#221F20]">
+            <p className="text-sm font-medium text-white">
               {usageData?.percentUsed >= 100 ? "Message limit reached" : "Approaching your message limit"}
             </p>
-            <p className="text-sm text-[#221F20]/80">
+            <p className="text-sm text-white/80">
               {usageData?.percentUsed >= 100
                 ? "You've reached 100% of your plan's message limit. Consider upgrading to avoid interruption."
-                : "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption."}
+                : usageData?.percentUsed >= 90
+                ? "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption."
+                : "You've reached 80% of your plan's message limit. Consider upgrading to avoid interruption."}
             </p>
             <div className="flex gap-2">
-              <Link to="/settings#usage" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">View Usage</Link>
+              {usageData?.percentUsed >= 90 ? (
+                <Link to="/billing" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
+              ) : (
+                <Link to="/settings#usage" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">View Usage</Link>
+              )}
               <button onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium">Dismiss</button>
             </div>
           </div>

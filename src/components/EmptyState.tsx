@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
+import { motion } from 'motion/react';
 
 interface EmptyStateProps {
   onSelectPrompt: (prompt: string) => void;
@@ -42,22 +43,25 @@ export function EmptyState({ onSelectPrompt, disabled = false, showPrompts = fal
 
         {/* Example prompts - only show on first login */}
         {(
-          <div className="pt-4 md:pt-6 animate-fade-in" style={{ animationDelay: "200ms" }}>
+          <div className="pt-4 md:pt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-2xl mx-auto">
               {examplePrompts.map((prompt, index) => (
-                <button
+                <motion.button
                   key={index}
                   onClick={() => !disabled && onSelectPrompt(prompt.text)}
                   disabled={disabled}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.15 }}
+                  viewport={{ once: true }}
+                  whileHover={{ y: -8 }}
                   className={cn(
-                    "group relative text-left p-4 md:p-5 rounded-xl border transition-all duration-200",
-                    "hover:border-primary/50 hover:bg-accent/50",
+                    "group relative text-left p-4 md:p-5 rounded-xl border transition-all duration-300",
+                    "hover:border-primary/50 hover:bg-accent/50 hover:shadow-xl",
                     disabled 
                       ? "opacity-50 cursor-not-allowed border-border bg-muted/30" 
-                      : "border-border bg-background cursor-pointer",
-                    "animate-fade-in"
+                      : "border-border bg-background cursor-pointer"
                   )}
-                  style={{ animationDelay: `${300 + index * 100}ms` }}
                 >
                   <div className="flex items-start gap-3">
                     <span className="text-2xl md:text-3xl flex-shrink-0">{prompt.icon}</span>
@@ -68,7 +72,7 @@ export function EmptyState({ onSelectPrompt, disabled = false, showPrompts = fal
                       {prompt.text}
                     </p>
                   </div>
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
