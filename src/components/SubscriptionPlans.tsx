@@ -20,9 +20,10 @@ interface Plan {
 interface SubscriptionPlansProps {
   onSelectPlan?: (planName: string) => void;
   selectedPlanName?: string | null;
+  currentPlanName?: string | null; // Current user's plan name (BASIC, PRO, ENTERPRISE, FREE)
 }
 
-export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: SubscriptionPlansProps = {}) {
+export function SubscriptionPlans({ onSelectPlan, selectedPlanName, currentPlanName }: SubscriptionPlansProps = {}) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(selectedPlanName || null);
@@ -58,7 +59,20 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
           highlighted: false,
         }));
       
-      setPlans(transformed);
+      // Sort plans: BASIC, PRO, ENTERPRISE
+      const planOrder = { "BASIC": 1, "PRO": 2, "ENTERPRISE": 3 };
+      const sorted = transformed.sort((a, b) => {
+        const orderA = planOrder[a.name as keyof typeof planOrder] || 999;
+        const orderB = planOrder[b.name as keyof typeof planOrder] || 999;
+        return orderA - orderB;
+      });
+      
+      // Filter out current plan if provided
+      const filtered = currentPlanName 
+        ? sorted.filter((p) => p.name !== currentPlanName)
+        : sorted;
+      
+      setPlans(filtered);
     } catch (error: any) {
       console.error("Failed to load plans:", error);
       toast.error("Failed to load subscription plans");
@@ -81,16 +95,29 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
     );
   }
   
+  const getPlanDescription = (plan: Plan): string => {
+    switch (plan.name) {
+      case "BASIC":
+        return "Start seeing your team differently.";
+      case "PRO":
+        return "Everything in Basic, plus";
+      case "ENTERPRISE":
+        return "Your teams are complex. Your solution should be too. Custom licensing, tailored onboarding, and dedicated support for organizations ready to rethink team development at scale.";
+      default:
+        return plan.description || "";
+    }
+  };
+
   const getFeatures = (plan: Plan): string[] => {
     if (plan.name === "ENTERPRISE") return [];
     const features: string[] = [];
     features.push(`${plan.maxMessagesPerMonth.toLocaleString()} messages per month`);
     if (plan.name === "PRO") {
-      features.push("Content, videos, training resources");
-      features.push("1 AMA webinar per month");
-      features.push("Team diagnostics");
+      features.push("full Quantum Teams content library, training videos, team diagnostic tools, and other exclusive resources added regularly.");
+      features.push("Think of it as a toolkit for understanding the living system you work in every day.");
+      features.push("Also receive a copy of Quantum Teams!");
     }
-    features.push("Cancel anytime");
+    features.push("Bring your toughest challenges and explore what's really driving your team's behavior - no generic advice, just a better way to think.");
     return features;
   };
   
@@ -134,11 +161,13 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
             <div className="space-y-3 mb-4">
               <h3 className="text-base font-semibold text-foreground">{plan.displayName}</h3>
               {plan.name === "ENTERPRISE" ? (
-                <p className="text-sm text-muted-foreground">Contact us</p>
+                <>
+                  <p className="text-sm text-muted-foreground mb-2">Contact us</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{getPlanDescription(plan)}</p>
+                </>
               ) : (
                 <>
-                  <p className="text-xs text-muted-foreground">{plan.description}</p>
-                  <div className="flex items-baseline gap-1">
+                  <div className="flex items-baseline gap-1 mb-3">
                     <span className="text-2xl font-bold text-foreground">
                       {plan.price === 0 ? "Free" : `$${plan.price}`}
                     </span>
@@ -146,6 +175,7 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName }: Subscripti
                       <span className="text-sm text-muted-foreground">/{plan.priceUnit}</span>
                     )}
                   </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{getPlanDescription(plan)}</p>
                 </>
               )}
             </div>

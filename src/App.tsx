@@ -20,6 +20,8 @@ import UpdatePaymentMethod from "./pages/UpdatePaymentMethod";
 import SharedConversation from "./pages/SharedConversation";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
+import TermsOfUse from "./pages/TermsOfUse";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -84,6 +86,8 @@ const App = () => (
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/accept-invitation" element={<AcceptInvitation />} />
           <Route path="/share/:token" element={<SharedConversation />} />
+          <Route path="/terms-of-use" element={<TermsOfUse />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           
           {/* Protected routes - require authentication */}
           <Route 

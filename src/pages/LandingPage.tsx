@@ -207,7 +207,7 @@ how your team adapts under pressure."
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
               { icon: Users, title: "Team leads and managers", description: "You're in the middle of it every day. Use the assistant to think through recurring challenges, prepare for conversations, and experiment with new approaches." },
-              { icon: Heart, title: "HR and organizational development professionals", description: "You're responsible for team efectiveness at scale. Use the assistant to explore team dynamics through a systems lens and develop more nuanced interventions." },
+              { icon: Heart, title: "HR and organizational development professionals", description: "You're responsible for team effectiveness at scale. Use the assistant to explore team dynamics through a systems lens and develop more nuanced interventions." },
               { icon: Building2, title: "Executives and senior leaders", description: "You set the conditions for dozens or hundreds of teams. Use the assistant to understand why some thrive and others don't – and what you can actually influence." },
               { icon: GraduationCap, title: "Coaches and consultants", description: "You help others navigate team challenges. Use the assistant to deepen your diagnostic toolkit and explore complexity-informed approaches with your clients." }
             ].map((profile, index) => (
@@ -321,12 +321,12 @@ complexity science with the real challenges of making teams work.            </p
             >
               Start a Conversation
             </GradientButton>
-            <p className="text-gray-600">
+            {/* <p className="text-gray-600">
               Questions? Interested in team or enterprise access?{' '}
               <button className="text-[#E40B7B] hover:underline font-medium">
                 Contact us
               </button>
-            </p>
+            </p> */}
           </motion.div>
         </div>
       </section>
@@ -338,12 +338,12 @@ complexity science with the real challenges of making teams work.            </p
             <div className="flex items-center">
               <img src="/assets/logo-landing.png" alt="EVO Associates" className="h-12 brightness-0 invert" />
             </div>
-            <div className="flex items-center gap-8 text-white/90">
+            {/* <div className="flex items-center gap-8 text-white/90">
               <a href="#" className="hover:text-white transition-colors">About</a>
               <a href="#" className="hover:text-white transition-colors">Privacy</a>
               <a href="#" className="hover:text-white transition-colors">Terms</a>
               <a href="#" className="hover:text-white transition-colors">Contact</a>
-            </div>
+            </div> */}
           </div>
           <div className="mt-8 text-center text-white/70 text-sm">
             © 2026 EVO Associates. All rights reserved.

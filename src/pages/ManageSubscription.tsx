@@ -101,6 +101,7 @@ export default function ManageSubscriptionPage() {
   const isOrganizationAdmin = userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN";
   
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [currentPlanName, setCurrentPlanName] = useState<string | null>(null); // Store current plan name (BASIC, PRO, ENTERPRISE, FREE)
   const [loading, setLoading] = useState(true);
   const [showPlans, setShowPlans] = useState(false);
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<string | null>(null);
@@ -187,6 +188,7 @@ export default function ManageSubscriptionPage() {
       // Super Admins manage subscriptions per-org from Super Admin dashboard; don't show a tenant's subscription
       if (status && status.isSuperAdmin === true) {
         setIsSuperAdminBilling(true);
+        setCurrentPlanName(null); // Super admins don't have a plan to filter
         setSubscription({
           type: "organization",
           organizationName: "",
@@ -208,6 +210,8 @@ export default function ManageSubscriptionPage() {
         const isOrg = status.type === "organization";
         const renewalDate = status.accessUntil ? new Date(status.accessUntil) : (status.renewalDate ? new Date(status.renewalDate) : new Date());
         const couponPlan = !!status.couponPlan;
+        const planName = status.plan?.name || "FREE"; // Get plan name (BASIC, PRO, ENTERPRISE, FREE)
+        setCurrentPlanName(planName);
         setSubscription(isOrg ? {
           type: "organization",
           organizationName: me.tenantName || status.organizationName || "Organization",
@@ -243,6 +247,7 @@ export default function ManageSubscriptionPage() {
         });
       } else {
         // No subscription - default to FREE
+        setCurrentPlanName("FREE");
         setSubscription(isOrganizationAdmin ? {
           type: "organization",
           organizationName: me.tenantName || "Organization",
@@ -483,6 +488,7 @@ export default function ManageSubscriptionPage() {
               <SubscriptionPlans 
                 onSelectPlan={handlePlanSelected}
                 selectedPlanName={selectedPlanForUpgrade}
+                currentPlanName={currentPlanName}
               />
             )}
           </div>

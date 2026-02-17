@@ -36,8 +36,7 @@ export function EmptyState({ onSelectPrompt, disabled = false, showPrompts = fal
             Your thinking partner
           </h1>
           <p className="text-muted-foreground leading-relaxed max-w-md mx-auto text-sm md:text-base">
-            Your AI-powered assistant to think through complex workplace situations, 
-            prepare for important conversations, and navigate challenging decisions.
+          Every team is a living system. Let's discover what yours needs today to thrive.
           </p>
         </div>
 

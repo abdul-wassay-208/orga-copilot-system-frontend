@@ -595,7 +595,7 @@ export default function SignupPage() {
                 ))}
               </div>
 
-              <p className="text-center">
+              {/* <p className="text-center">
                 <button
                   type="button"
                   onClick={handleSkipForNow}
@@ -604,7 +604,7 @@ export default function SignupPage() {
                 >
                   Skip for now
                 </button>
-              </p>
+              </p> */}
             </>
           );
           })()}
@@ -816,13 +816,13 @@ export default function SignupPage() {
                 </div>
                 <span className="text-sm text-muted-foreground leading-tight">
                   I agree to the{" "}
-                  <a href="#" className="text-primary hover:text-primary/80">
+                  <Link to="/terms-of-use" className="text-primary hover:text-primary/80">
                     Terms of Service
-                  </a>{" "}
+                  </Link>{" "}
                   and{" "}
-                  <a href="#" className="text-primary hover:text-primary/80">
+                  <Link to="/privacy-policy" className="text-primary hover:text-primary/80">
                     Privacy Policy
-                  </a>
+                  </Link>
                 </span>
               </label>
               {errors.acceptTerms && (

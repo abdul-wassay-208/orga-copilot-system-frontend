@@ -34,7 +34,7 @@ export default function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [usageData, setUsageData] = useState({
     messagesUsed: 0,
-    messagesLimit: 1000,
+    messagesLimit: 0, // Default to 0 (FREE plan) until API loads
     percentUsed: 0,
     unlimited: false as boolean,
   });
@@ -293,7 +293,7 @@ export default function SettingsPage() {
       const data = response.data;
       setUsageData({
         messagesUsed: data.messagesUsed || 0,
-        messagesLimit: data.messagesLimit || 1000,
+        messagesLimit: data.messagesLimit ?? 0, // Use API value, default to 0 (FREE plan)
         percentUsed: data.percentUsed || 0,
         unlimited: data.unlimited === true,
       });
@@ -538,9 +538,9 @@ export default function SettingsPage() {
                         tabIndex={-1}
                       >
                         {showPasswords.new ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
                           <Eye className="h-4 w-4" />
+                        ) : (
+                          <EyeOff className="h-4 w-4" />
                         )}
                       </button>
                     </div>
@@ -793,8 +793,6 @@ export default function SettingsPage() {
                       "h-full rounded-full transition-all duration-300",
                       usageData.percentUsed >= 100
                         ? "bg-destructive"
-                        : usageData.percentUsed >= 80
-                        ? "bg-yellow-500"
                         : "progress-gradient-fill"
                     )}
                     style={{ width: `${Math.min(usageData.percentUsed, 100)}%` }}
@@ -803,7 +801,7 @@ export default function SettingsPage() {
                 )}
                 {!usageData.unlimited && usageData.percentUsed >= 80 && (
                   <div 
-                    className="p-3 rounded-full border space-y-2 animate-fade-in border-border"
+                    className="p-3 border space-y-2 animate-fade-in border-border"
                     style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
                   >
                     <div className="flex items-start gap-2">

@@ -257,9 +257,6 @@ function TenantsTab() {
       setTotalPages(responseData.totalPages || 0);
       setTotalElements(responseData.totalElements || 0);
       
-      // Also get metrics to calculate user counts and message usage
-      const metricsResponse = await adminClient.get("/api/admin/super/metrics");
-      
       const transformed: Tenant[] = backendTenants.map((t: any) => {
         // Determine status based on isActive
         let status: "active" | "trial" | "inactive" | "grace" = "inactive";
@@ -271,9 +268,9 @@ function TenantsTab() {
           id: String(t.id),
           name: t.name,
           status,
-          usersCount: 0, // Will be calculated separately
+          usersCount: t.totalEmployees || 0, // Use totalEmployees from backend
           messagesUsed: Number(t.messagesUsed ?? 0),
-          messagesLimit: Number(t.messagesLimit ?? t.maxMessagesPerMonth ?? 500),
+          messagesLimit: Number(t.messagesLimit ?? t.maxMessagesPerMonth ?? 0), // Use API value, default to 0 (FREE plan)
           plan: t.subscriptionPlan || "FREE",
           admin: t.admin ? {
             id: String(t.admin.id),
@@ -375,7 +372,7 @@ function TenantsTab() {
     e?.preventDefault();
     e?.stopPropagation();
     setLimitModalTenant(tenant);
-    const lim = tenant.messagesLimit ?? 500;
+    const lim = tenant.messagesLimit ?? 0; // Use API value, default to 0 (FREE plan)
     setLimitModalValue(isUnlimitedLimit(lim) ? "" : String(lim));
   };
 
@@ -406,12 +403,14 @@ function TenantsTab() {
     totalTenants?: number;
     activeTenants?: number;
     totalUsers?: number;
+    activeUsers?: number;
     totalMessagesUsed?: number;
     totalMessagesLimit?: number;
   }>({
     totalTenants: 0,
     activeTenants: 0,
     totalUsers: 0,
+    activeUsers: 0,
     totalMessagesUsed: 0,
     totalMessagesLimit: 0,
   });
@@ -428,15 +427,6 @@ function TenantsTab() {
       console.error("Failed to load metrics:", error);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="text-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-        <p className="text-sm text-muted-foreground mt-2">Loading tenants...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -468,7 +458,7 @@ function TenantsTab() {
             </div>
             <div>
               <p className="text-2xl font-semibold text-foreground">
-                {metrics.activeTenants || tenants.filter((t) => t.status === "active").length}
+                {metrics.activeUsers ?? 0}
               </p>
               <p className="text-xs text-muted-foreground">Active Users</p>
             </div>
@@ -514,7 +504,6 @@ function TenantsTab() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {totalElements} {totalElements === 1 ? 'organization' : 'organizations'}
-          {totalPages > 1 && ` (Page ${currentPage + 1} of ${totalPages})`}
         </p>
         <button
           onClick={() => setShowAddDialog(true)}
@@ -526,18 +515,191 @@ function TenantsTab() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="p-4 rounded-xl bg-card border border-border">
-        <input
-          type="text"
-          placeholder="Search by organization name..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(0);
-          }}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
-        />
+      {/* Tenants Table */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
+          <h3 className="text-sm font-medium text-foreground">All tenants</h3>
+          {totalElements > 0 && (
+            <span className="text-muted-foreground font-normal text-xs sm:text-sm">
+              ({totalElements} total · Page {currentPage + 1} of {totalPages || 1})
+            </span>
+          )}
+          <input
+            type="text"
+            placeholder="Search by organization name..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="sm:ml-auto w-full sm:w-64 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+        </div>
+        {tenants.length === 0 && !loading ? (
+          <p className="text-sm text-muted-foreground px-4 py-6">
+            {searchParam.trim() ? "No tenants match your search." : "No tenants yet."}
+          </p>
+        ) : (
+          <>
+            <div className="overflow-x-auto relative">
+              {loading && (
+                <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 flex items-center justify-center">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Loading…</span>
+                  </div>
+                </div>
+              )}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/20">
+                    <th className="text-left font-medium text-foreground px-4 py-3">Organization</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Admin</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Plan</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Users</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Status</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Usage</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Created</th>
+                    <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tenants.map((tenant) => {
+                    const used = tenant.messagesUsed ?? 0;
+                    const limit = tenant.messagesLimit ?? 0; // Use API value, default to 0 (FREE plan)
+                    const unlimited = isUnlimitedLimit(limit);
+                    return (
+                      <tr key={tenant.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-foreground">{tenant.name}</div>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {tenant.admin ? (
+                            <div>
+                              <div className="text-foreground">{tenant.admin.fullName}</div>
+                              <div className="text-xs text-muted-foreground">{tenant.admin.email}</div>
+                            </div>
+                          ) : (
+                            <span>—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">{tenant.plan}</td>
+                        <td className="px-4 py-3 text-foreground">{tenant.usersCount.toLocaleString()}</td>
+                        <td className="px-4 py-3">
+                          <span className={cn("inline-flex items-center px-2 py-0.5 rounded text-xs font-medium", getStatusColor(tenant.status))}>
+                            {getStatusLabel(tenant.status)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={(e) => openLimitModal(tenant, e)}
+                            className="flex items-center gap-2 text-xs hover:underline"
+                            title="Click to change limit"
+                          >
+                            <span className="text-foreground">{used.toLocaleString()} / {formatMessageLimit(limit)}</span>
+                            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden min-w-[64px]">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full",
+                                  !unlimited && limit > 0 && (used / limit) >= 1 ? "bg-destructive" : "progress-gradient-fill"
+                                )}
+                                style={{ width: unlimited ? "0%" : `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
+                              />
+                            </div>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {tenant.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => toggleTenantUsers(tenant)}
+                            className={cn(
+                              "p-1.5 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors",
+                              expandedTenantId === tenant.id && "bg-chat-hover text-foreground"
+                            )}
+                            title="View users in this organization"
+                            aria-label="View users"
+                          >
+                            <ChevronRight className={cn("h-4 w-4 transition-transform", expandedTenantId === tenant.id && "rotate-90")} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {/* Expanded user list */}
+            {expandedTenantId && (
+              <div className="border-t border-border bg-muted/20 px-4 py-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Users in this organization</p>
+                {loadingTenantUsers ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading users...
+                  </div>
+                ) : tenantUsers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No users found.</p>
+                ) : (
+                  <ul className="space-y-1.5 max-h-60 overflow-y-auto">
+                    {tenantUsers.map((u) => (
+                      <li key={u.id || u.email} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md bg-card border border-border text-sm">
+                        <div className="min-w-0">
+                          <span className="font-medium text-foreground truncate block">{u.name}</span>
+                          <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
+                        </div>
+                        <span className={cn(
+                          "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
+                          u.role === "Admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                        )}>{u.role}</span>
+                        <span className={cn(
+                          "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
+                          u.status === "Active" ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                        )}>{u.status}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage((p) => Math.max(0, p - 1));
+                  }}
+                  disabled={currentPage === 0}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4 mt-0.5" />
+                  Previous
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage + 1} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+                  }}
+                  disabled={currentPage >= totalPages - 1}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 mt-0.5" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Limit edit modal - rendered via portal to body for true centered popup overlay */}
@@ -552,7 +714,7 @@ function TenantsTab() {
               </button>
             </div>
             <p className="text-sm text-muted-foreground">
-              {limitModalTenant.name} — currently {(limitModalTenant.messagesUsed ?? 0).toLocaleString()} / {formatMessageLimit(limitModalTenant.messagesLimit ?? 500)} used
+              {limitModalTenant.name} — currently {(limitModalTenant.messagesUsed ?? 0).toLocaleString()} / {formatMessageLimit(limitModalTenant.messagesLimit ?? 0)} used
             </p>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">New monthly limit</label>
@@ -589,202 +751,6 @@ function TenantsTab() {
         document.body
       )}
 
-      {/* Tenants list */}
-      <div className="border border-border rounded-xl divide-y divide-border overflow-x-auto">
-        {!loading && tenants.length === 0 ? (
-          <div className="text-center py-10 px-4 text-muted-foreground text-sm">
-            {searchParam.trim() ? "No organizations match your search." : "No organizations yet."}
-          </div>
-        ) : (
-        tenants.map((tenant) => {
-          const used = tenant.messagesUsed ?? 0;
-          const limit = tenant.messagesLimit ?? 500;
-          const unlimited = isUnlimitedLimit(limit);
-          return (
-          <div key={tenant.id}>
-          <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors min-w-0">
-            <div className="flex items-center gap-4 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <Building2 className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{tenant.name}</p>
-                <div className="text-xs text-muted-foreground space-y-0.5">
-                  <p>{tenant.plan} · {tenant.totalEmployees} employees</p>
-                  {tenant.admin && (
-                    <p className="text-xs text-muted-foreground">
-                      Admin: {tenant.admin.fullName} ({tenant.admin.email})
-                    </p>
-                  )}
-                  {tenant.createdAt && (
-                    <p className="text-xs text-muted-foreground">
-                      Created: {new Date(tenant.createdAt).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 flex-shrink-0">
-              {/* Limit / Used - clickable to edit */}
-              <button
-                type="button"
-                onClick={(e) => openLimitModal(tenant, e)}
-                className={cn(
-                  "flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors",
-                  "hover:bg-muted/80 border border-border",
-                  "text-foreground bg-muted/30"
-                )}
-                title="Click to change limit"
-              >
-                <span className="font-medium whitespace-nowrap">{used.toLocaleString()} / {formatMessageLimit(limit)}</span>
-                <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden min-w-[64px]">
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      !unlimited && limit > 0 && (used / limit) > 0.9 ? "bg-destructive" : "progress-gradient-fill"
-                    )}
-                    style={{ width: unlimited ? "0%" : `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
-                  />
-                </div>
-              </button>
-              <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", getStatusColor(tenant.status))}>
-                {getStatusLabel(tenant.status)}
-              </span>
-              <button
-                type="button"
-                onClick={() => toggleTenantUsers(tenant)}
-                className={cn(
-                  "p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors",
-                  expandedTenantId === tenant.id && "bg-chat-hover text-foreground"
-                )}
-                title="View users in this organization"
-                aria-label="View users"
-              >
-                <ChevronRight className={cn("h-4 w-4 transition-transform", expandedTenantId === tenant.id && "rotate-90")} />
-              </button>
-            </div>
-          </div>
-          {expandedTenantId === tenant.id && (
-            <div className="border-t border-border bg-muted/20 px-4 py-3">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Users in this organization</p>
-              {loadingTenantUsers ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading users...
-                </div>
-              ) : tenantUsers.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No users found.</p>
-              ) : (
-                <ul className="space-y-1.5 max-h-60 overflow-y-auto">
-                  {tenantUsers.map((u) => (
-                    <li key={u.id || u.email} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded-md bg-card border border-border text-sm">
-                      <div className="min-w-0">
-                        <span className="font-medium text-foreground truncate block">{u.name}</span>
-                        <span className="text-xs text-muted-foreground truncate block">{u.email}</span>
-                      </div>
-                      <span className={cn(
-                        "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
-                        u.role === "Admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                      )}>{u.role}</span>
-                      <span className={cn(
-                        "text-xs px-2 py-0.5 rounded-full flex-shrink-0",
-                        u.status === "Active" ? "bg-green-500/10 text-green-600 dark:text-green-400" : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                      )}>{u.status}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          </div>
-        );
-        })
-        )}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center pt-4">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 0) {
-                      setCurrentPage(currentPage - 1);
-                    }
-                  }}
-                  disabled={currentPage === 0}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50"
-                  )}
-                >
-                  <ChevronLeft className="h-4 w-4 mt-0.5" />
-                  <span>Previous</span>
-                </button>
-              </PaginationItem>
-              
-              {/* Page numbers */}
-              {Array.from({ length: totalPages }, (_, i) => {
-                // Show first page, last page, current page, and pages around current
-                const showPage = 
-                  i === 0 || 
-                  i === totalPages - 1 || 
-                  (i >= currentPage - 1 && i <= currentPage + 1);
-                
-                if (!showPage) {
-                  // Show ellipsis
-                  if (i === currentPage - 2 || i === currentPage + 2) {
-                    return (
-                      <PaginationItem key={i}>
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    );
-                  }
-                  return null;
-                }
-                
-                return (
-                  <PaginationItem key={i}>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage(i);
-                      }}
-                      className={cn(
-                        "inline-flex items-center justify-center rounded-md h-10 w-10 text-sm font-medium transition-colors",
-                        i === currentPage
-                          ? "border border-input bg-background"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      )}
-                    >
-                      {i + 1}
-                    </button>
-                  </PaginationItem>
-                );
-              })}
-              
-              <PaginationItem>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage < totalPages - 1) {
-                      setCurrentPage(currentPage + 1);
-                    }
-                  }}
-                  disabled={currentPage >= totalPages - 1}
-                  className="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:pointer-events-none disabled:opacity-50 transition-all duration-200"
-                  style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
-                >
-                  <span>Next</span>
-                  <ChevronRight className="h-4 w-4 mt-0.5" />
-                </button>
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
 
       {/* Add Tenant Dialog */}
       {showAddDialog && (
@@ -891,7 +857,7 @@ function UsageOverviewTab() {
         totalMessages,
         totalLimit,
         totalUsers: metrics.totalUsers || 0,
-        activeThisMonth: metrics.totalUsers || 0, // Approximate
+        activeThisMonth: metrics.activeUsers || 0, // Users who sent messages this month
       });
       
       // Get top tenants by usage
@@ -994,8 +960,7 @@ function UsageOverviewTab() {
                 <div
                   className={cn(
                     "h-full rounded-full",
-                    !unlim && pct > 90 ? "bg-destructive" :
-                    !unlim && pct > 75 ? "bg-yellow-500" : "progress-gradient-fill"
+                    !unlim && pct >= 100 ? "bg-destructive" : "progress-gradient-fill"
                   )}
                   style={{ width: `${pct}%` }}
                 />
@@ -1340,7 +1305,11 @@ function CouponsTab() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10">
                 <button
-                  onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage((p) => Math.max(0, p - 1));
+                  }}
                   disabled={currentPage === 0}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1351,7 +1320,11 @@ function CouponsTab() {
                   Page {currentPage + 1} of {totalPages}
                 </span>
                 <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+                  }}
                   disabled={currentPage >= totalPages - 1}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
@@ -1507,7 +1480,7 @@ function SuperAdminUsersTab() {
               <tbody>
                 {users.map((u) => {
                   const used = u.messagesUsed ?? 0;
-                  const limit = u.messagesLimit ?? 500;
+                  const limit = u.messagesLimit ?? 0; // Use API value, default to 0 (FREE plan)
                   return (
                   <tr
                     key={u.id}
@@ -1564,7 +1537,7 @@ function SuperAdminUsersTab() {
             <div>
               <p className="text-xs text-muted-foreground">Messages used this month</p>
               <p className="font-medium text-foreground">
-                {(userDetail.messagesUsed ?? 0).toLocaleString()} / {formatMessageLimit(userDetail.messagesLimit ?? userDetail.effectiveMessageLimit ?? 500)}
+                {(userDetail.messagesUsed ?? 0).toLocaleString()} / {formatMessageLimit(userDetail.messagesLimit ?? userDetail.effectiveMessageLimit ?? 0)}
               </p>
             </div>
             <div>

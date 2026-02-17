@@ -263,7 +263,7 @@ function UsersTab() {
           role,
           status: u.status === "PENDING" ? "pending" : "active",
           messagesUsed: u.messagesUsed || 0,
-          messagesLimit: u.messagesLimit || u.maxMessagesPerMonth || 500, // Use API value, fallback to 500
+          messagesLimit: u.messagesLimit ?? u.maxMessagesPerMonth ?? 0, // Use API value, default to 0 (FREE plan)
           invitationTokenId: u.invitationTokenId,
         };
       });
@@ -375,207 +375,167 @@ function UsersTab() {
         </p>
       </div>
 
-      {/* Search */}
-      <div className="p-4 rounded-xl bg-card border border-border">
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setCurrentPage(0);
-          }}
-          className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20 transition-all"
-        />
-      </div>
-
-      {/* Users list */}
-      <div className="border border-border rounded-xl divide-y divide-border overflow-visible">
+      {/* Users Table */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
+          <h3 className="text-sm font-medium text-foreground">All users</h3>
+          {totalElements > 0 && (
+            <span className="text-muted-foreground font-normal text-xs sm:text-sm">
+              ({totalElements} total · Page {currentPage + 1} of {totalPages || 1})
+            </span>
+          )}
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(0);
+            }}
+            className="sm:ml-auto w-full sm:w-64 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+        </div>
         {loading ? (
-          <div className="text-center py-12 px-4">
-            <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mt-2">Loading users...</p>
+          <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Loading users…</span>
           </div>
         ) : users.length === 0 ? (
-          searchParam.trim() ? (
-            <div className="text-center py-10 px-4 text-muted-foreground text-sm">
-              No users match your search.
+          <p className="text-sm text-muted-foreground px-4 py-6">
+            {searchParam.trim() ? "No users match your search." : "No users yet."}
+          </p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/20">
+                    <th className="text-left font-medium text-foreground px-4 py-3">Name</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Email</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Role</th>
+                    <th className="text-left font-medium text-foreground px-4 py-3">Status</th>
+                    <th className="text-right font-medium text-foreground px-4 py-3">Usage</th>
+                    <th className="text-right font-medium text-foreground px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user.id || user.email} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      <td className="px-4 py-3 text-foreground">{user.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <span 
+                          className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                            user.role === "super_admin"
+                              ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                              : user.role === "admin" 
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Admin" : "Employee"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                            user.status === "active"
+                              ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                              : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                          )}
+                        >
+                          {user.status === "active" ? "Active" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap">
+                        {user.messagesUsed !== undefined && user.messagesLimit !== undefined ? (
+                          <div className="flex items-center justify-end gap-2">
+                            <span>{user.messagesUsed.toLocaleString()} / {formatMessageLimit(user.messagesLimit)}</span>
+                            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div 
+                                className="h-full rounded-full progress-gradient-fill" 
+                                style={{ width: isUnlimitedLimit(user.messagesLimit) ? "0%" : `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {user.email !== currentUserEmail ? (
+                          <div className="relative group inline-block">
+                            <button className="p-1.5 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </button>
+                            <div className="absolute right-0 bottom-full mb-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                              {user.status === "pending" && (
+                                <button 
+                                  onClick={() => handleResendInvitation(user.email)}
+                                  className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  Resend invite
+                                </button>
+                              )}
+                              {user.id && (
+                                <button
+                                  onClick={() => setShowRemoveConfirm(user.id!)}
+                                  className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Remove user
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            <div className="text-center py-10 px-4 space-y-3">
-              <p className="text-foreground font-medium">No users added yet</p>
-              <p className="text-sm text-muted-foreground">
-                {isFreePlan ? "Upgrade to Basic or Pro to invite team members." : "Invite team members to get started"}
-              </p>
-              <button
-                onClick={() => !isFreePlan && setShowInviteDialog(true)}
-                disabled={isFreePlan}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <UserPlus className="h-4 w-4" />
-                Invite your first user
-              </button>
-            </div>
-          )
-        ) : users.map((user) => (
-          <div key={user.id || user.email} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-card hover:bg-chat-hover/50 transition-colors">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-medium text-muted-foreground">
-                  {user.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-              {/* Usage bar - numbers only, no content */}
-              {user.messagesUsed !== undefined && user.messagesLimit !== undefined && (
-                <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
-                  <span>{user.messagesUsed.toLocaleString()} / {formatMessageLimit(user.messagesLimit)}</span>
-                  <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div 
-                      className="h-full rounded-full progress-gradient-fill" 
-                      style={{ width: isUnlimitedLimit(user.messagesLimit) ? "0%" : `${Math.min((user.messagesUsed / user.messagesLimit) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              <span
-                className={cn(
-                  "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
-                  user.status === "active"
-                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                    : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                )}
-              >
-                {user.status === "active" ? "Active" : "Pending"}
-              </span>
-              <span 
-                className={cn(
-                  "text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap flex-shrink-0",
-                  user.role === "super_admin"
-                    ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
-                    : user.role === "admin" 
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {user.role === "super_admin" ? "Super Admin" : user.role === "admin" ? "Admin" : "Employee"}
-              </span>
-              {/* Hide 3-dots menu for current user (admin cannot remove themselves) */}
-              {user.email !== currentUserEmail && (
-                <div className="relative group flex-shrink-0">
-                  <button className="p-2 rounded-lg hover:bg-chat-hover text-muted-foreground hover:text-foreground transition-colors">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                  <div className="absolute right-0 bottom-full mb-1 w-44 py-1 bg-card border border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                    {user.status === "pending" && (
-                      <button 
-                        onClick={() => handleResendInvitation(user.email)}
-                        className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover flex items-center gap-2 text-foreground"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        Resend invite
-                      </button>
-                    )}
-                    {user.id && (
-                      <button
-                        onClick={() => setShowRemoveConfirm(user.id!)}
-                        className="w-full px-3 py-2 text-sm text-left hover:bg-chat-hover text-destructive flex items-center gap-2"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Remove user
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex justify-center pt-4">
-          <nav className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                if (currentPage > 0) {
-                  setCurrentPage(currentPage - 1);
-                }
-              }}
-              disabled={currentPage === 0}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                currentPage === 0
-                  ? "pointer-events-none opacity-50"
-                  : "hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span>Previous</span>
-            </button>
-            
-            {/* Page numbers */}
-            {Array.from({ length: totalPages }, (_, i) => {
-              // Show first page, last page, current page, and pages around current
-              const showPage = 
-                i === 0 || 
-                i === totalPages - 1 || 
-                (i >= currentPage - 1 && i <= currentPage + 1);
-              
-              if (!showPage) {
-                // Show ellipsis
-                if (i === currentPage - 2 || i === currentPage + 2) {
-                  return (
-                    <span key={i} className="flex h-10 w-10 items-center justify-center">
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </span>
-                  );
-                }
-                return null;
-              }
-              
-              return (
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/10">
                 <button
-                  key={i}
-                  onClick={() => setCurrentPage(i)}
-                  className={cn(
-                    "inline-flex items-center justify-center rounded-md h-10 w-10 text-sm font-medium transition-colors",
-                    i === currentPage
-                      ? "border border-input bg-background"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  )}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage((p) => Math.max(0, p - 1));
+                  }}
+                  disabled={currentPage === 0}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {i + 1}
+                  <ChevronLeft className="h-4 w-4 mt-0.5" />
+                  Previous
                 </button>
-              );
-            })}
-            
-            <button
-              onClick={() => {
-                if (currentPage < totalPages - 1) {
-                  setCurrentPage(currentPage + 1);
-                }
-              }}
-              disabled={currentPage >= totalPages - 1}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                currentPage >= totalPages - 1
-                  ? "pointer-events-none opacity-50"
-                  : "hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <span>Next</span>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </nav>
-        </div>
-      )}
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage + 1} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentPage((p) => Math.min(totalPages - 1, p + 1));
+                  }}
+                  disabled={currentPage >= totalPages - 1}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 mt-0.5" />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Invite Dialog */}
       {showInviteDialog && (
@@ -820,6 +780,7 @@ function BillingTab() {
     },
   });
   const [loading, setLoading] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const loadingRef = useRef(false);
 
   // Handle Stripe checkout redirect first, then load data
@@ -874,6 +835,11 @@ function BillingTab() {
       const metrics = metricsResponse.status === 'fulfilled' ? metricsResponse.value.data : {};
       const me = meResponse.status === 'fulfilled' ? meResponse.value.data : {};
       const usage = usageResponse.status === 'fulfilled' ? usageResponse.value.data : null;
+      
+      // Check if user is super admin
+      const roles = me.roles || [];
+      const role = me.role || "";
+      setIsSuperAdmin(roles.includes("SUPER_ADMIN") || role === "SUPER_ADMIN");
       
       const plan = status?.plan || {};
       // Prefer per-user usage for display so each user sees their own limit, not org total
@@ -1053,7 +1019,7 @@ function BillingTab() {
           <div
             className={cn(
               "h-full rounded-full transition-all",
-              usagePercent >= 100 ? "bg-destructive" : usagePercent > 90 ? "bg-destructive" : usagePercent > 75 ? "bg-yellow-500" : "progress-gradient-fill"
+              usagePercent >= 100 ? "bg-destructive" : "progress-gradient-fill"
             )}
             style={{ width: isUnlimitedLimit(subscription.usage.limit) ? "0%" : `${Math.min(usagePercent, 100)}%` }}
           />
@@ -1069,22 +1035,24 @@ function BillingTab() {
         )}
       </div>
 
-      {/* Manage Billing Link */}
-      <Link
-        to="/billing"
-        className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-chat-hover transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-            <CreditCard className="h-5 w-5 text-muted-foreground" />
+      {/* Manage Billing Link - Hidden for super admins */}
+      {!isSuperAdmin && (
+        <Link
+          to="/billing"
+          className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:bg-chat-hover transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Manage Subscription</p>
+              <p className="text-xs text-muted-foreground">Update plan, payment method, and more</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium text-foreground">Manage Subscription</p>
-            <p className="text-xs text-muted-foreground">Update plan, payment method, and more</p>
-          </div>
-        </div>
-        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-      </Link>
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </Link>
+      )}
     </div>
   );
 }

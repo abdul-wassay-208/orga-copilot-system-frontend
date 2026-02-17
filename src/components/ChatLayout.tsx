@@ -90,7 +90,7 @@ export function ChatLayout() {
       const data = response.data;
       setUsageData({
         messagesUsed: data.messagesUsed || 0,
-        messagesLimit: data.messagesLimit || 1000,
+        messagesLimit: data.messagesLimit ?? 0, // Use API value, default to 0 (FREE plan)
         percentUsed: data.percentUsed || 0,
         usageAlert90: data.usageAlert90,
         usageAlert100: data.usageAlert100,
@@ -131,6 +131,8 @@ export function ChatLayout() {
       const response = await chatClient.get("/chat/conversations");
       const backendConversations = response.data || [];
       
+      console.log("Loaded conversations from backend:", backendConversations.length);
+      
       // Get current active conversation messages to preserve them
       const activeConvMessages = preserveActiveMessages && activeConversationId
         ? conversations.find(c => c.id === activeConversationId)?.messages || []
@@ -141,15 +143,36 @@ export function ChatLayout() {
         const existingConv = conversations.find(c => c.id === String(conv.id));
         const isActive = activeConversationId === String(conv.id);
         
+        // Parse dates safely - handle both ISO string and other formats
+        let createdAt: Date;
+        let updatedAt: Date;
+        try {
+          createdAt = new Date(conv.createdAt);
+          updatedAt = new Date(conv.updatedAt);
+          // Check if dates are valid
+          if (isNaN(createdAt.getTime())) {
+            console.warn("Invalid createdAt date for conversation:", conv.id, conv.createdAt);
+            createdAt = new Date(); // Fallback to current date
+          }
+          if (isNaN(updatedAt.getTime())) {
+            console.warn("Invalid updatedAt date for conversation:", conv.id, conv.updatedAt);
+            updatedAt = new Date(); // Fallback to current date
+          }
+        } catch (e) {
+          console.error("Error parsing dates for conversation:", conv.id, e);
+          createdAt = new Date();
+          updatedAt = new Date();
+        }
+        
         return {
           id: String(conv.id),
-          title: conv.title,
+          title: conv.title || "Untitled",
           // Preserve messages if this is the active conversation and we want to preserve
           messages: preserveActiveMessages && isActive && activeConvMessages.length > 0
             ? activeConvMessages
             : existingConv?.messages || [], // Keep existing messages if conversation exists
-          createdAt: new Date(conv.createdAt),
-          updatedAt: new Date(conv.updatedAt),
+          createdAt,
+          updatedAt,
         };
       });
       
@@ -172,7 +195,9 @@ export function ChatLayout() {
       });
     } catch (error: any) {
       console.error("Failed to load conversations:", error);
-      toast.error("Failed to load conversations");
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to load conversations";
+      console.error("Error details:", error?.response?.data);
+      toast.error(errorMessage);
     } finally {
       setLoadingConversations(false);
     }
