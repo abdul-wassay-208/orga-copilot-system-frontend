@@ -36,7 +36,12 @@ export function EmptyState({ onSelectPrompt, disabled = false, showPrompts = fal
             Your thinking partner
           </h1>
           <p className="text-muted-foreground leading-relaxed max-w-md mx-auto text-sm md:text-base">
+<<<<<<< HEAD
           Every team is a living system. Let's discover what yours needs today to thrive.
+=======
+            Your AI-powered partner for understanding team dynamics, 
+            strengthening collaboration and helping your team thrive as a living system.
+>>>>>>> 80c20ec2fef34c5ef8c476f72365660543399396
           </p>
         </div>
 
