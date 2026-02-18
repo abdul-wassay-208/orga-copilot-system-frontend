@@ -44,17 +44,22 @@ export default function SignupPage() {
       const response = await client.get("/api/subscription/plans");
       const backendPlans = response.data || [];
       
-      const transformed = backendPlans.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        displayName: p.displayName,
-        price: p.price,
-        priceUnit: p.priceUnit,
-        description: p.description,
-        maxMessagesPerMonth: p.maxMessagesPerMonth,
-        maxUsers: p.maxUsers,
-        isPerUser: p.isPerUser,
-      }));
+      const transformed = backendPlans.map((p: any) => {
+        // Safely parse price: ensure it's a number, default to 0 if invalid
+        const planPrice = p.price != null ? Number(p.price) : 0;
+        const safePrice = isNaN(planPrice) || planPrice < 0 ? 0 : planPrice;
+        return {
+          id: p.id,
+          name: p.name,
+          displayName: p.displayName,
+          price: safePrice,
+          priceUnit: p.priceUnit,
+          description: p.description,
+          maxMessagesPerMonth: p.maxMessagesPerMonth,
+          maxUsers: p.maxUsers,
+          isPerUser: p.isPerUser,
+        };
+      });
       
       setPlans(transformed);
     } catch (error: any) {
@@ -536,9 +541,9 @@ export default function SignupPage() {
                           <p className="text-xs text-muted-foreground">{plan.description}</p>
                           <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-foreground">
-                              ${plan.price}
+                              {plan.price === 0 ? "Free" : `$${plan.price}`}
                             </span>
-                            {plan.priceUnit && (
+                            {plan.priceUnit && plan.price > 0 && (
                               <span className="text-sm text-muted-foreground">/{plan.priceUnit}</span>
                             )}
                           </div>

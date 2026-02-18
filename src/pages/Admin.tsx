@@ -767,7 +767,7 @@ function BillingTab() {
   const [subscription, setSubscription] = useState({
     organizationName: "",
     plan: "FREE",
-    pricePerUser: 12,
+    pricePerUser: 0, // Show 0 until API loads; avoids showing $12 when on FREE after Stripe back
     planPrice: 0, // Fixed price for non-per-user plans
     activeUsers: 0,
     status: "active" as "active" | "trial" | "past_due" | "grace",
@@ -851,11 +851,14 @@ function BillingTab() {
         const planObj = status.plan || {};
         const subscriptionStatus = status.status?.toLowerCase() || "active";
         const isFreePlan = subscriptionStatus === "free" || planObj.name === "FREE";
+        // Safely parse price: ensure it's a number, default to 0 if invalid
+        const planPrice = planObj.price != null ? Number(planObj.price) : 0;
+        const safePrice = isNaN(planPrice) || planPrice < 0 ? 0 : planPrice;
         setSubscription({
           organizationName: me.tenantName || status.organizationName || "Organization",
           plan: planObj.displayName || planObj.name || "Free Plan",
-          pricePerUser: planObj.isPerUser ? planObj.price || 0 : 0,
-          planPrice: planObj.isPerUser ? 0 : (planObj.price || 0),
+          pricePerUser: planObj.isPerUser ? safePrice : 0,
+          planPrice: planObj.isPerUser ? 0 : safePrice,
           activeUsers: metrics.currentUsers || 0,
           status: isFreePlan ? "active" : subscriptionStatus,
           renewalDate: status.renewalDate ? new Date(status.renewalDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
@@ -948,7 +951,7 @@ function BillingTab() {
           {subscription.pricePerUser > 0 && (
             <div>
               <p className="text-xs text-muted-foreground">Price per user</p>
-              <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.pricePerUser}</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">${Number(subscription.pricePerUser).toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">/month</p>
             </div>
           )}
@@ -962,7 +965,7 @@ function BillingTab() {
           {subscription.pricePerUser === 0 && subscription.planPrice > 0 && (
             <div>
               <p className="text-xs text-muted-foreground">Plan price</p>
-              <p className="text-lg font-semibold text-foreground mt-0.5">${subscription.planPrice}</p>
+              <p className="text-lg font-semibold text-foreground mt-0.5">${Number(subscription.planPrice).toFixed(2)}</p>
               <p className="text-xs text-muted-foreground">/month</p>
             </div>
           )}
@@ -973,7 +976,7 @@ function BillingTab() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Monthly cost</p>
-            <p className="text-lg font-semibold text-foreground mt-0.5">${monthlyEstimate}</p>
+            <p className="text-lg font-semibold text-foreground mt-0.5">${Number(monthlyEstimate).toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">estimated</p>
           </div>
           <div>

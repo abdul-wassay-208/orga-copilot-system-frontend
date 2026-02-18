@@ -46,18 +46,23 @@ export function SubscriptionPlans({ onSelectPlan, selectedPlanName, currentPlanN
       
       const transformed: Plan[] = backendPlans
         .filter((p: any) => ["BASIC", "PRO", "ENTERPRISE"].includes(p.name))
-        .map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          displayName: p.displayName,
-          price: p.price,
-          priceUnit: p.priceUnit,
-          description: p.description,
-          maxMessagesPerMonth: p.maxMessagesPerMonth,
-          maxUsers: p.maxUsers,
-          isPerUser: p.isPerUser,
-          highlighted: false,
-        }));
+        .map((p: any) => {
+          // Safely parse price: ensure it's a number, default to 0 if invalid
+          const planPrice = p.price != null ? Number(p.price) : 0;
+          const safePrice = isNaN(planPrice) || planPrice < 0 ? 0 : planPrice;
+          return {
+            id: p.id,
+            name: p.name,
+            displayName: p.displayName,
+            price: safePrice,
+            priceUnit: p.priceUnit,
+            description: p.description,
+            maxMessagesPerMonth: p.maxMessagesPerMonth,
+            maxUsers: p.maxUsers,
+            isPerUser: p.isPerUser,
+            highlighted: false,
+          };
+        });
       
       // Sort plans: BASIC, PRO, ENTERPRISE
       const planOrder = { "BASIC": 1, "PRO": 2, "ENTERPRISE": 3 };

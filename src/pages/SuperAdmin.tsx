@@ -1757,7 +1757,7 @@ function DefaultLimitsTab() {
 
       {/* Standard limits */}
       <div className="space-y-4">
-        <h3 className="text-sm font-medium text-foreground">Standard Plan Defaults</h3>
+        <h3 className="text-sm font-medium text-foreground">Plan Defaults (Basic / Pro)</h3>
         <div className="p-5 rounded-xl border border-border bg-card space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>

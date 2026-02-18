@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ExternalLink, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2, XCircle } from "lucide-react";
+import { ArrowLeft, CreditCard, Calendar, Tag, AlertCircle, Users, Building2, Info, Loader2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SubscriptionPlans } from "@/components/SubscriptionPlans";
 import { CouponCheckoutPrompt } from "@/components/CouponCheckoutPrompt";
@@ -212,12 +212,15 @@ export default function ManageSubscriptionPage() {
         const couponPlan = !!status.couponPlan;
         const planName = status.plan?.name || "FREE"; // Get plan name (BASIC, PRO, ENTERPRISE, FREE)
         setCurrentPlanName(planName);
+        // Safely parse price: ensure it's a number, default to 0 if invalid
+        const planPrice = status.plan?.price != null ? Number(status.plan.price) : 0;
+        const safePrice = isNaN(planPrice) || planPrice < 0 ? 0 : planPrice;
         setSubscription(isOrg ? {
           type: "organization",
           organizationName: me.tenantName || status.organizationName || "Organization",
           plan: status.plan.displayName,
-          pricePerUser: status.plan.isPerUser ? status.plan.price : 0,
-          planPrice: status.plan.isPerUser ? 0 : (status.plan.price || 0),
+          pricePerUser: status.plan.isPerUser ? safePrice : 0,
+          planPrice: status.plan.isPerUser ? 0 : safePrice,
           activeUsers: metrics.currentUsers || status.totalUsers || 0,
           totalUsers: status.totalUsers,
           totalMonthlyCostCents: status.totalMonthlyCostCents,
@@ -261,7 +264,7 @@ export default function ManageSubscriptionPage() {
           coupon: null,
           usage: {
             current: metrics.messagesThisMonth || 0,
-            limit: 500,
+            limit: 0, // FREE plan = 0 messages
           },
         } : {
           type: "individual",
@@ -272,7 +275,7 @@ export default function ManageSubscriptionPage() {
           coupon: null,
           usage: {
             current: metrics.messagesThisMonth || 0,
-            limit: 500,
+            limit: 0, // FREE plan = 0 messages
           },
         });
       }
@@ -345,27 +348,6 @@ export default function ManageSubscriptionPage() {
         valid: false,
         message: e?.response?.data?.message || "Could not validate coupon",
       };
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const body: { planName: string; successUrl?: string; cancelUrl?: string } = {
-        planName: subscription?.plan === "Free Plan" ? "STANDARD" : 
-                 subscription?.plan === "Standard Plan" ? "STANDARD" : "ENTERPRISE",
-      };
-      if (origin) {
-        body.successUrl = `${origin}/billing?session_id={CHECKOUT_SESSION_ID}`;
-        body.cancelUrl = `${origin}/billing?canceled=true`;
-      }
-      const response = await adminClient.post("/api/subscription/create-checkout-session", body);
-      if (response.data.url) {
-        window.location.href = response.data.url;
-      }
-    } catch (error: any) {
-      console.error("Failed to create checkout session:", error);
-      toast.error(error?.response?.data?.message || "Failed to manage subscription");
     }
   };
 
@@ -535,7 +517,7 @@ export default function ManageSubscriptionPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Price per user</p>
-                    <p className="text-sm font-medium text-foreground">${subscription.pricePerUser}/month</p>
+                    <p className="text-sm font-medium text-foreground">${Number(subscription.pricePerUser).toFixed(2)}/month</p>
                   </div>
                 </div>
               )}
@@ -548,7 +530,7 @@ export default function ManageSubscriptionPage() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Plan price</p>
-                    <p className="text-sm font-medium text-foreground">${subscription.planPrice}/month</p>
+                    <p className="text-sm font-medium text-foreground">${Number(subscription.planPrice).toFixed(2)}/month</p>
                   </div>
                 </div>
               )}
@@ -762,7 +744,7 @@ export default function ManageSubscriptionPage() {
                 </div>
                 {subscription.pricePerUser > 0 ? (
                   <p className="text-xs text-muted-foreground mt-1">
-                    {subscription.activeUsers} users × ${subscription.pricePerUser}/user
+                    {subscription.activeUsers} users × ${Number(subscription.pricePerUser).toFixed(2)}/user
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground mt-1">
@@ -806,14 +788,6 @@ export default function ManageSubscriptionPage() {
                 Change Plan
               </button>
             )}
-            <button
-              onClick={handleManageSubscription}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm font-medium text-foreground hover:bg-chat-hover transition-colors"
-            >
-              Manage Subscription
-              <ExternalLink className="h-4 w-4" />
-            </button>
-
             <button
               onClick={() => navigate("/billing/payment-method")}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm font-medium text-foreground hover:bg-chat-hover transition-colors"
