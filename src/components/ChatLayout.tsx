@@ -1109,7 +1109,6 @@ export function ChatLayout() {
                       : "What's on your mind?"}
                   showPromptChips={!isFreeUser}
                   onSelectPrompt={handleSendMessage}
-                  onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? () => navigate("/billing") : undefined}
                 />
               </>
             ) : (
@@ -1155,7 +1154,6 @@ export function ChatLayout() {
                       : "What's on your mind?"}
                   showPromptChips={!isFreeUser && activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
                   onSelectPrompt={handleSendMessage}
-                  onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? () => navigate("/billing") : undefined}
                 />
               </>
             )}

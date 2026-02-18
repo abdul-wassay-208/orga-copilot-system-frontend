@@ -17,9 +17,10 @@ export function ProtectedRoute({ children, allowedRoles, requireSubscription = f
   const [checkingSubscription, setCheckingSubscription] = useState(false);
 
   useEffect(() => {
+    // Check subscription status but don't block access - users can access chat regardless
     if (requireSubscription && isAuthenticated && !loading) {
       checkSubscription();
-    } else if (!requireSubscription) {
+    } else {
       setSubscriptionValid(true);
     }
   }, [requireSubscription, isAuthenticated, loading]);
@@ -45,9 +46,28 @@ export function ProtectedRoute({ children, allowedRoles, requireSubscription = f
       }
       
       const status = data.status?.toUpperCase();
-      // Allow FREE, ACTIVE, and PAST_DUE (with grace period)
-      const valid = status === "FREE" || status === "ACTIVE" || status === "PAST_DUE";
-      setSubscriptionValid(valid);
+      // Allow FREE, ACTIVE, PAST_DUE, and CANCELED (if still within paid period)
+      if (status === "FREE" || status === "ACTIVE" || status === "PAST_DUE") {
+        setSubscriptionValid(true);
+        return;
+      }
+      
+      // For CANCELED subscriptions, check if still within paid period
+      if (status === "CANCELED") {
+        const accessUntil = data.accessUntil;
+        if (accessUntil) {
+          const endDate = new Date(accessUntil);
+          const now = new Date();
+          // Allow access if currentPeriodEnd hasn't passed yet
+          setSubscriptionValid(endDate >= now);
+        } else {
+          // No accessUntil date - allow access (fallback)
+          setSubscriptionValid(true);
+        }
+        return;
+      }
+      
+      setSubscriptionValid(false);
     } catch (error: any) {
       console.error("Failed to check subscription:", error);
       // On error, allow access but log it
@@ -57,7 +77,8 @@ export function ProtectedRoute({ children, allowedRoles, requireSubscription = f
     }
   };
 
-  if (loading || (requireSubscription && checkingSubscription && subscriptionValid === null)) {
+  // Only show loading for auth check, not subscription check (subscription check happens in background)
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -75,14 +96,9 @@ export function ProtectedRoute({ children, allowedRoles, requireSubscription = f
     return <Navigate to="/chat" replace />;
   }
 
-  // Check subscription for chat routes. Only admins are sent to billing; employees stay on chat to avoid redirect loop and repeated "access denied".
-  if (requireSubscription && subscriptionValid === false) {
-    const isBillingAdmin = user?.role === "TENANT_ADMIN" || user?.role === "SUPER_ADMIN";
-    if (isBillingAdmin) {
-      return <Navigate to="/billing" replace />;
-    }
-    // Employee: do not redirect to billing (they would see "access denied" and loop). Let them stay on chat.
-  }
+  // Allow access to chat regardless of subscription status
+  // Users can see usage limits and upgrade prompts within chat, but won't be forced to billing page
+  // The chat interface will handle showing appropriate messages for free/unpaid users
 
   return children;
 }

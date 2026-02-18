@@ -613,15 +613,6 @@ export default function SignupPage() {
             </>
           );
           })()}
-          
-          <div className="text-center">
-            <button
-              onClick={() => navigate("/login")}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Already have an account? Sign in
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -821,13 +812,13 @@ export default function SignupPage() {
                 </div>
                 <span className="text-sm text-muted-foreground leading-tight">
                   I agree to the{" "}
-                  <Link to="/terms-of-use" className="text-primary hover:text-primary/80">
+                  <a href="/terms-of-use" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
                     Terms of Service
-                  </Link>{" "}
+                  </a>{" "}
                   and{" "}
-                  <Link to="/privacy-policy" className="text-primary hover:text-primary/80">
+                  <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary/80">
                     Privacy Policy
-                  </Link>
+                  </a>
                 </span>
               </label>
               {errors.acceptTerms && (

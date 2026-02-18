@@ -105,7 +105,25 @@ adminClient.interceptors.request.use(
 adminClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    // NEVER auto-logout for password-related endpoints - always let the handler manage it
+    const url = error.config?.url || '';
+    const fullUrl = error.config?.baseURL ? `${error.config.baseURL}${url}` : url;
+    const isPasswordEndpoint = 
+      url.includes('/api/auth/change-password') || 
+      url.includes('/api/auth/validate-password') ||
+      url.includes('change-password') ||
+      url.includes('validate-password') ||
+      fullUrl.includes('/api/auth/change-password') ||
+      fullUrl.includes('/api/auth/validate-password') ||
+      fullUrl.includes('change-password') ||
+      fullUrl.includes('validate-password');
+    
+    // Check if request has skipAuthRedirect flag
+    const skipRedirect = error.config?.skipAuthRedirect === true;
+    
+    // Skip auto-logout for password endpoints OR if skipAuthRedirect is set OR if status is 400 (bad request, not auth error)
+    // Only logout on 401 for non-password endpoints
+    if (error.response?.status === 401 && !isPasswordEndpoint && !skipRedirect) {
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       window.location.href = '/login';

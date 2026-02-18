@@ -598,6 +598,15 @@ function TenantsTab() {
                             title="Click to change limit"
                           >
                             <span className="text-foreground">{used.toLocaleString()} / {formatMessageLimit(limit)}</span>
+                            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden min-w-[64px]">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full",
+                                  !unlimited && limit > 0 && (used / limit) >= 1 ? "bg-destructive" : "progress-gradient-fill"
+                                )}
+                                style={{ width: unlimited ? "0%" : `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
+                              />
+                            </div>
                           </button>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
@@ -947,7 +956,15 @@ function UsageOverviewTab() {
             return (
             <div key={tenant.name} className="flex items-center gap-4">
               <div className="w-32 text-sm text-foreground truncate">{tenant.name}</div>
-              <div className="flex-1" />
+              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full",
+                    !unlim && pct >= 100 ? "bg-destructive" : "progress-gradient-fill"
+                  )}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
               <div className="w-32 text-sm text-muted-foreground text-right">
                 {tenant.usage.toLocaleString()} / {formatMessageLimit(tenant.limit)}
               </div>

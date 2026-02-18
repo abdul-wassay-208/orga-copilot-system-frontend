@@ -1,17 +1,9 @@
-import { Link } from "react-router-dom";
-
 export default function PrivacyPolicy() {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-8">
-          <Link 
-            to="/signup" 
-            className="text-sm text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-2 mb-6"
-          >
-            ← Back to Signup
-          </Link>
           <h1 className="text-3xl font-bold text-foreground mb-2">Privacy Policy</h1>
           <p className="text-sm text-muted-foreground">
             Last updated: {new Date().toLocaleDateString()}
@@ -119,19 +111,15 @@ export default function PrivacyPolicy() {
 
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-border">
-          <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <Link 
-              to="/signup" 
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              ← Back to Signup
-            </Link>
-            <Link 
-              to="/terms-of-use" 
+          <div className="flex justify-end">
+            <a 
+              href="/terms-of-use" 
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-primary hover:text-primary/80 transition-colors"
             >
               View Terms of Use →
-            </Link>
+            </a>
           </div>
         </div>
       </div>

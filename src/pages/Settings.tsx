@@ -247,49 +247,68 @@ export default function SettingsPage() {
     setPasswordErrors({});
 
     try {
-      await adminClient.put("/api/auth/change-password", {
+      // Step 1: Validate current password first
+      const config: any = {
+        skipAuthRedirect: true
+      };
+      
+      const validateResponse = await adminClient.post("/api/auth/validate-password", {
+        currentPassword: passwordData.current,
+      }, config);
+
+      if (!validateResponse.data?.valid) {
+        setPasswordErrors({ current: "Current password is incorrect" });
+        toast.error("Current password is incorrect");
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Step 2: If validation passes, proceed with password change
+      const changeResponse = await adminClient.put("/api/auth/change-password", {
         currentPassword: passwordData.current,
         newPassword: passwordData.new,
         confirmPassword: passwordData.confirm,
-      });
+      }, config);
 
-      toast.success("Password changed successfully! Please log in again.");
-      
-      // Clear tokens and log out user (security best practice)
-      localStorage.removeItem("token");
-      localStorage.removeItem("authToken");
-      
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        navigate("/login");
-      }, 1500);
+      // Password changed successfully
+      if (changeResponse.status === 200 || changeResponse.status === 204) {
+        toast.success("Password changed successfully!");
+        
+        // Clear the form
+        setPasswordData({ current: "", new: "", confirm: "" });
+        setShowPasswordForm(false);
+        setPasswordErrors({});
+        setIsChangingPassword(false);
+      }
     } catch (error: any) {
       console.error("Failed to change password:", error);
       const status = error?.response?.status;
       const errorMessage = error?.response?.data?.message || "Failed to change password. Please try again.";
       
-      // Handle 401 (Unauthorized) - wrong current password
-      if (status === 401 || errorMessage.toLowerCase().includes("incorrect") || errorMessage.toLowerCase().includes("wrong")) {
-        setPasswordErrors({ current: "Current password is incorrect" });
-        toast.error("Current password is incorrect");
+      // ALWAYS reset loading state first
+      setIsChangingPassword(false);
+      
+      // Handle validation errors (400) - wrong current password or other validation issues
+      if (status === 400 || status === 401) {
+        if (errorMessage.toLowerCase().includes("current password") || errorMessage.toLowerCase().includes("incorrect") || errorMessage.toLowerCase().includes("wrong")) {
+          setPasswordErrors({ current: "Current password is incorrect" });
+          toast.error("Current password is incorrect");
+        } else if (errorMessage.toLowerCase().includes("new password") || errorMessage.toLowerCase().includes("new")) {
+          setPasswordErrors({ new: errorMessage });
+          toast.error(errorMessage);
+        } else if (errorMessage.toLowerCase().includes("confirmation") || errorMessage.toLowerCase().includes("match") || errorMessage.toLowerCase().includes("confirm")) {
+          setPasswordErrors({ confirm: errorMessage });
+          toast.error(errorMessage);
+        } else {
+          setPasswordErrors({ current: errorMessage });
+          toast.error(errorMessage);
+        }
         return;
       }
       
-      // Set specific field errors if available
-      if (errorMessage.includes("Current password") || errorMessage.toLowerCase().includes("current")) {
-        setPasswordErrors({ current: errorMessage });
-      } else if (errorMessage.includes("New password") || errorMessage.toLowerCase().includes("new password")) {
-        setPasswordErrors({ new: errorMessage });
-      } else if (errorMessage.includes("confirmation") || errorMessage.includes("match") || errorMessage.toLowerCase().includes("confirm")) {
-        setPasswordErrors({ confirm: errorMessage });
-      } else {
-        // Default to showing error on current password field
-        setPasswordErrors({ current: errorMessage });
-      }
-      
+      // Handle other errors
       toast.error(errorMessage);
-    } finally {
-      setIsChangingPassword(false);
+      setPasswordErrors({ current: errorMessage });
     }
   };
 
