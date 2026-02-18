@@ -373,13 +373,13 @@ export default function SignupPage() {
             disabled={isLoading}
           />
           <p className="text-center text-sm text-muted-foreground">
-            <button
+            {/* <button
               type="button"
               onClick={() => navigate("/login")}
               className="text-primary hover:text-primary/80"
             >
               Already have an account? Sign in
-            </button>
+            </button> */}
           </p>
         </div>
       </div>
