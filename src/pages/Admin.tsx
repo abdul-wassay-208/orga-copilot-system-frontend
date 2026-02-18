@@ -117,17 +117,18 @@ export default function AdminPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               onClick={() => navigate("/chat")}
-              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors flex-shrink-0"
+              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors flex-shrink-0 touch-manipulation"
+              aria-label="Go back"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold text-foreground">Admin</h1>
-              <p className="text-xs text-muted-foreground">Manage your organization</p>
+              <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">Admin</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Manage your organization</p>
             </div>
           </div>
           
@@ -140,22 +141,22 @@ export default function AdminPage() {
       </div> */}
 
       {/* Tabs */}
-      <div className="border-b border-border sticky top-[73px] bg-background z-10">
-        <div className="max-w-4xl mx-auto px-4">
+      <div className="border-b border-border sticky top-[65px] sm:top-[73px] bg-background z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-thin">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                  "flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap touch-manipulation",
                   activeTab === tab.id
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 )}
               >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
+                <tab.icon className="h-4 w-4 flex-shrink-0" />
+                <span>{tab.label}</span>
               </button>
             ))}
           </nav>
@@ -163,7 +164,7 @@ export default function AdminPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         {activeTab === "users" && <UsersTab />}
         {activeTab === "billing" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <BillingTab />}
         {activeTab === "transactions" && (userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && <TransactionHistoryTab />}
@@ -367,7 +368,7 @@ function UsersTab() {
             onClick={() => !isFreePlan && setShowInviteDialog(true)}
             disabled={isFreePlan}
             title={isFreePlan ? "Upgrade to Basic or Pro to invite team members." : undefined}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
             style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
           >
             <Plus className="h-4 w-4" />
@@ -630,16 +631,16 @@ function UsersTab() {
                 This will revoke their access to the platform immediately.
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={() => setShowRemoveConfirm(null)}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors w-full sm:w-auto"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleRemove(showRemoveConfirm)}
-                className="flex-1 px-4 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors w-full sm:w-auto"
               >
                 Remove
               </button>

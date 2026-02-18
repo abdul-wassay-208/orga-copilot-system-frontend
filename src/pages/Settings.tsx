@@ -379,8 +379,8 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-4">
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
           <button
             onClick={() => {
               // Try to go back in history, otherwise go to chat
@@ -390,15 +390,16 @@ export default function SettingsPage() {
                 navigate("/chat");
               }
             }}
-            className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+            className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+            aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-semibold text-foreground">Settings</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-foreground">Settings</h1>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-8 space-y-10">
+      <main className="max-w-2xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 sm:space-y-10">
         {/* Profile Section */}
         <section className="space-y-4">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -410,7 +411,7 @@ export default function SettingsPage() {
               <label htmlFor="name" className="text-sm font-medium text-foreground">
                 Name
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <div className="flex-1 relative">
                   <input
                     id="name"
@@ -438,14 +439,14 @@ export default function SettingsPage() {
                   onClick={handleSaveName}
                   disabled={isSaving || !hasChanges || !isNameValid}
                   className={cn(
-                    "px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    "px-4 py-2.5 rounded-lg text-sm font-medium transition-colors w-full sm:w-auto touch-manipulation",
                     hasChanges && isNameValid
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                   )}
                 >
                   {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin mx-auto sm:mx-0" />
                   ) : (
                     "Save"
                   )}
@@ -495,7 +496,7 @@ export default function SettingsPage() {
                     }
                   }}
                   className={cn(
-                    "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white hover:opacity-90",
+                    "px-4 py-2.5 sm:py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 text-white hover:opacity-90 touch-manipulation w-full sm:w-auto",
                     showPasswordForm && "opacity-75"
                   )}
                   style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
@@ -665,7 +666,7 @@ export default function SettingsPage() {
                       passwordData.current === passwordData.new
                     }
                     className={cn(
-                      "w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      "w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors touch-manipulation",
                       "bg-primary text-primary-foreground hover:bg-primary/90",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
@@ -709,7 +710,7 @@ export default function SettingsPage() {
                 onClick={handleToggle2FA}
                 disabled={isToggling2FA}
                 className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white hover:opacity-90",
+                  "px-4 py-2.5 sm:py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 text-white hover:opacity-90 touch-manipulation w-full sm:w-auto",
                   isToggling2FA && "opacity-50 cursor-not-allowed"
                 )}
                 style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}

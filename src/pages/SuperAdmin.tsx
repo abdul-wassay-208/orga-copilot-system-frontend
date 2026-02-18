@@ -143,8 +143,8 @@ export default function SuperAdminPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <button
               onClick={() => {
                 // Try to go back in history, otherwise go to admin (Super Admins likely came from Admin page)
@@ -154,13 +154,14 @@ export default function SuperAdminPage() {
                   navigate("/admin");
                 }
               }}
-              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+              className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors flex-shrink-0 touch-manipulation"
+              aria-label="Go back"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div>
-              <h1 className="text-lg font-semibold text-foreground">Super Admin</h1>
-              <p className="text-xs text-muted-foreground">Manage all organizations</p>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">Super Admin</h1>
+              <p className="text-xs text-muted-foreground hidden sm:block">Manage all organizations</p>
             </div>
           </div>
         </div>
@@ -172,21 +173,21 @@ export default function SuperAdminPage() {
       </div> */}
 
       {/* Tabs */}
-      <div className="border-b border-border sticky top-[73px] bg-background z-10">
-        <div className="max-w-5xl mx-auto px-4">
+      <div className="border-b border-border sticky top-[65px] sm:top-[73px] bg-background z-10">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <nav className="flex gap-1 -mb-px overflow-x-auto scrollbar-thin">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                  "flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap touch-manipulation",
                   activeTab === tab.id
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 )}
               >
-                <tab.icon className="h-4 w-4" />
+                <tab.icon className="h-4 w-4 flex-shrink-0" />
                 {tab.label}
               </button>
             ))}
@@ -507,7 +508,7 @@ function TenantsTab() {
         </p>
         <button
           onClick={() => setShowAddDialog(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition-all duration-200 w-full sm:w-auto"
           style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
         >
           <Plus className="h-4 w-4" />
@@ -730,17 +731,17 @@ function TenantsTab() {
             <p className="text-xs text-muted-foreground">
               Tenant admin will receive an email notification when the limit is increased.
             </p>
-            <div className="flex gap-3 justify-end pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 justify-end pt-2">
               <button
                 onClick={() => setLimitModalTenant(null)}
-                className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover"
+                className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover w-full sm:w-auto"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveLimit}
                 disabled={savingLimit || !limitModalValue.trim()}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 w-full sm:w-auto"
               >
                 {savingLimit ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Save

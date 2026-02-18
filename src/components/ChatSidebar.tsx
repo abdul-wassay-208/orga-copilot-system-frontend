@@ -70,7 +70,7 @@ export function ChatSidebar({
 
   if (isCollapsed) {
     return (
-      <div className="w-0 md:w-14 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-3 transition-all duration-200">
+      <div className="w-0 sm:w-16 md:w-14 bg-sidebar border-r border-sidebar-border flex flex-col items-center py-3 transition-all duration-200">
         <button
           onClick={onToggleCollapse}
           className="p-2 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground mb-3"
@@ -92,7 +92,7 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left overflow-hidden">
+    <div className="w-full sm:w-72 md:w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left overflow-hidden">
 
       {/* Header with product name - Sticky */}
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
@@ -114,11 +114,11 @@ export function ChatSidebar({
         </div>
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-full transition-all duration-200 text-sm font-medium shadow-sm border text-white hover:opacity-90 mt-[1.2rem]"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 sm:py-3 rounded-full transition-all duration-200 text-sm font-medium shadow-sm border text-white hover:opacity-90 mt-[1.2rem] touch-manipulation"
           style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
         >
-          <Plus className="h-4 w-4" />
-          New Chat
+          <Plus className="h-4 w-4 flex-shrink-0" />
+          <span className="whitespace-nowrap">New Chat</span>
         </button>
       </div>
 
@@ -233,21 +233,21 @@ export function ChatSidebar({
         )}
 
         {/* User info and settings */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
-              <User className="h-4 w-4 text-sidebar-foreground/70" />
+            <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
+              <User className="h-4 w-4 sm:h-5 sm:w-5 text-sidebar-foreground/70" />
             </div>
-            <span className="text-sm text-sidebar-foreground truncate">{userName}</span>
+            <span className="text-xs sm:text-sm text-sidebar-foreground truncate min-w-0">{userName}</span>
           </div>
-          <div className="flex items-center gap-0.5 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-0.5 flex-shrink-0">
             <ThemeToggle />
             <Link
               to="/settings"
-              className="p-1.5 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground"
+              className="p-2 sm:p-1.5 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground flex-shrink-0 touch-manipulation"
               aria-label="Settings"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-4 w-4 sm:h-4 sm:w-4" />
             </Link>
           </div>
         </div>

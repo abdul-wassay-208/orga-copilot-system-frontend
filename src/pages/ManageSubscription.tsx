@@ -379,7 +379,7 @@ export default function ManageSubscriptionPage() {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
             <button
               onClick={() => navigate("/admin?tab=billing")}
               className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
@@ -389,7 +389,7 @@ export default function ManageSubscriptionPage() {
             <h1 className="text-lg font-semibold text-foreground">Manage Subscription</h1>
           </div>
         </header>
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="p-6 rounded-xl border border-border bg-card text-center space-y-4">
             <p className="text-foreground font-medium">You are a Super Admin.</p>
             <p className="text-sm text-muted-foreground">
@@ -397,7 +397,7 @@ export default function ManageSubscriptionPage() {
             </p>
             <Link
               to="/super-admin"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors touch-manipulation"
             >
               Go to Super Admin dashboard
             </Link>
@@ -418,24 +418,25 @@ export default function ManageSubscriptionPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+      <header className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
           <button
             onClick={() => {
               // Navigate to billing page (admin billing tab)
               navigate("/admin?tab=billing");
             }}
-            className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+            className="p-2 -ml-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors touch-manipulation flex-shrink-0"
+            aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-semibold text-foreground">
+          <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">
             {isOrg ? "Organization Subscription" : "Subscription"}
           </h1>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Single, persistent message for admin when payment failed — no repeated toasts or reloads */}
         {subscription.status === "past_due" && (
           <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/10 text-red-800 dark:text-red-200">
@@ -656,7 +657,7 @@ export default function ManageSubscriptionPage() {
               {(!subscription.coupon || subscription.plan === "Free Plan") && (
                 <div className="pt-3 border-t border-border space-y-2">
                   <p className="text-xs font-medium text-foreground">Have a coupon code?</p>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       value={couponCode}
@@ -669,64 +670,66 @@ export default function ManageSubscriptionPage() {
                       className="flex-1 px-3 py-2 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
                       disabled={applyingCoupon}
                     />
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const code = couponCode.trim();
-                        if (!code) {
-                          setCouponError("Enter a coupon code");
-                          return;
-                        }
-                        setApplyingCoupon(true);
-                        setCouponError(null);
-                        setCouponValid(null);
-                        try {
-                          const res = await adminClient.get("/api/subscription/validate-coupon", { params: { code } });
-                          if (res.data?.valid) {
-                            setCouponValid({ planName: res.data.planName || "Basic or Pro" });
-                          } else {
-                            setCouponError(res.data?.message || "Invalid coupon");
+                    <div className="flex flex-col sm:flex-row gap-2 sm:flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const code = couponCode.trim();
+                          if (!code) {
+                            setCouponError("Enter a coupon code");
+                            return;
                           }
-                        } catch (e: any) {
-                          setCouponError(e?.response?.data?.message || "Could not validate coupon");
-                        } finally {
-                          setApplyingCoupon(false);
-                        }
-                      }}
-                      disabled={applyingCoupon || !couponCode.trim()}
-                      className="px-3 py-2 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50"
-                    >
-                      Validate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const code = couponCode.trim();
-                        if (!code) {
-                          setCouponError("Enter a coupon code");
-                          return;
-                        }
-                        setApplyingCoupon(true);
-                        setCouponError(null);
-                        try {
-                          await adminClient.post("/api/subscription/apply-coupon", { code });
-                          toast.success("Coupon applied. Your plan has been updated.");
-                          setCouponCode("");
+                          setApplyingCoupon(true);
+                          setCouponError(null);
                           setCouponValid(null);
-                          await loadSubscription();
-                        } catch (e: any) {
-                          const msg = e?.response?.data?.message || "Failed to apply coupon";
-                          setCouponError(msg);
-                          toast.error(msg);
-                        } finally {
-                          setApplyingCoupon(false);
-                        }
-                      }}
-                      disabled={applyingCoupon || !couponCode.trim()}
-                      className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      Apply
-                    </button>
+                          try {
+                            const res = await adminClient.get("/api/subscription/validate-coupon", { params: { code } });
+                            if (res.data?.valid) {
+                              setCouponValid({ planName: res.data.planName || "Basic or Pro" });
+                            } else {
+                              setCouponError(res.data?.message || "Invalid coupon");
+                            }
+                          } catch (e: any) {
+                            setCouponError(e?.response?.data?.message || "Could not validate coupon");
+                          } finally {
+                            setApplyingCoupon(false);
+                          }
+                        }}
+                        disabled={applyingCoupon || !couponCode.trim()}
+                        className="px-3 py-2 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover disabled:opacity-50 w-full sm:w-auto"
+                      >
+                        Validate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const code = couponCode.trim();
+                          if (!code) {
+                            setCouponError("Enter a coupon code");
+                            return;
+                          }
+                          setApplyingCoupon(true);
+                          setCouponError(null);
+                          try {
+                            await adminClient.post("/api/subscription/apply-coupon", { code });
+                            toast.success("Coupon applied. Your plan has been updated.");
+                            setCouponCode("");
+                            setCouponValid(null);
+                            await loadSubscription();
+                          } catch (e: any) {
+                            const msg = e?.response?.data?.message || "Failed to apply coupon";
+                            setCouponError(msg);
+                            toast.error(msg);
+                          } finally {
+                            setApplyingCoupon(false);
+                          }
+                        }}
+                        disabled={applyingCoupon || !couponCode.trim()}
+                        className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 w-full sm:w-auto"
+                      >
+                        Apply
+                      </button>
+                    </div>
                   </div>
                   {couponError && <p className="text-xs text-destructive">{couponError}</p>}
                   {couponValid && <p className="text-xs text-green-600 dark:text-green-400">Valid for {couponValid.planName}. Click Apply to activate.</p>}
@@ -783,14 +786,14 @@ export default function ManageSubscriptionPage() {
             {!showPlans && (
               <button
                 onClick={() => setShowPlans(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors touch-manipulation"
               >
                 Change Plan
               </button>
             )}
             <button
               onClick={() => navigate("/billing/payment-method")}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm font-medium text-foreground hover:bg-chat-hover transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm font-medium text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
             >
               <CreditCard className="h-4 w-4" />
               Update Payment Method
@@ -799,7 +802,7 @@ export default function ManageSubscriptionPage() {
             {subscription.status !== "canceled" && subscription.plan !== "Free Plan" && (
               <button
                 onClick={() => setShowCancelDialog(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 text-sm font-medium transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10 text-sm font-medium transition-colors touch-manipulation"
               >
                 <XCircle className="h-4 w-4" />
                 Cancel Subscription

@@ -6,7 +6,7 @@ import { EmptyState } from "./EmptyState";
 import { ShareConversationModal } from "./ShareConversationModal";
 import { DeleteChatModal } from "./DeleteChatModal";
 import { Conversation, Message } from "@/types/chat";
-import { Menu, Download, AlertTriangle, X, Share2, LogOut } from "lucide-react";
+import { Menu, Download, AlertTriangle, X, Share2, LogOut, Settings } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -49,6 +49,7 @@ export function ChatLayout() {
   const [editText, setEditText] = useState("");
   const [showShareModal, setShowShareModal] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const usageDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastErrorToastRef = useRef<{ message: string; at: number } | null>(null);
@@ -254,6 +255,7 @@ export function ChatLayout() {
       setConversations((prev) => [newConv, ...prev]);
       setActiveConversationId(newConv.id);
       setMobileMenuOpen(false);
+      setShowMobileMenu(false);
     } catch (error: any) {
       console.error("Failed to create conversation:", error);
       toast.error("Failed to create new conversation");
@@ -263,6 +265,7 @@ export function ChatLayout() {
   const handleSelectConversation = async (id: string) => {
     setActiveConversationId(id);
     setMobileMenuOpen(false);
+    setShowMobileMenu(false);
     setConversationLimitReachedForActive(false);
     // Load conversation messages if not already loaded
     const conv = conversations.find((c) => c.id === id);
@@ -918,7 +921,7 @@ export function ChatLayout() {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileMenuOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2.5 rounded-lg bg-card border border-border shadow-sm hover:bg-chat-hover transition-colors"
+        className="md:hidden fixed top-4 left-4 z-50 p-3 rounded-lg bg-card border border-border shadow-lg hover:bg-chat-hover transition-colors touch-manipulation"
         aria-label="Open menu"
       >
         <Menu className="h-5 w-5" />
@@ -928,7 +931,10 @@ export function ChatLayout() {
       {mobileMenuOpen && (
         <div
           className="md:hidden fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 animate-fade-in"
-          onClick={() => setMobileMenuOpen(false)}
+          onClick={() => {
+            setMobileMenuOpen(false);
+            setShowMobileMenu(false);
+          }}
         />
       )}
 
@@ -958,39 +964,110 @@ export function ChatLayout() {
         {/* Top bar */}
         {activeConversation && (
           <div className="h-14 border-b border-border flex items-center justify-between px-4 md:px-6 bg-background/80 backdrop-blur-sm">
-            <div className="flex items-center gap-3 pl-12 md:pl-0">
-              <h2 className="text-sm font-medium text-foreground truncate max-w-[180px] md:max-w-md">
+            <div className="flex items-center gap-2 sm:gap-3 pl-12 md:pl-0 min-w-0 flex-1">
+              <h2 className="text-sm font-medium text-foreground truncate max-w-[140px] sm:max-w-[200px] md:max-w-md">
                 {activeConversation.title}
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/5 border border-primary/10">
                 <img src="/assets/lock.svg" alt="Lock" className="h-3 w-3 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                 <span className="text-xs text-primary font-medium">Private</span>
               </div>
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Share conversation"
-              >
-                <Share2 className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleExportConversation}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Export conversation"
-              >
-                <Download className="h-4 w-4" />
-              </button>
-              <ThemeToggle />
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Logout"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+              {/* Mobile: Show menu dropdown, Desktop: Show all buttons */}
+              <div className="md:hidden relative">
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+                  aria-label="More options"
+                  aria-expanded={showMobileMenu}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+                {showMobileMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowMobileMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-2 animate-fade-in">
+                      <button
+                        onClick={() => {
+                          setShowShareModal(true);
+                          setShowMobileMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+                      >
+                        <Share2 className="h-4 w-4 flex-shrink-0" />
+                        <span>Share</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleExportConversation();
+                          setShowMobileMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+                      >
+                        <Download className="h-4 w-4 flex-shrink-0" />
+                        <span>Export</span>
+                      </button>
+                      <div className="border-t border-border my-1" />
+                      <Link
+                        to="/settings"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+                      >
+                        <Settings className="h-4 w-4 flex-shrink-0" />
+                        <span>Settings</span>
+                      </Link>
+                      <div className="border-t border-border my-1" />
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setShowMobileMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
+                      >
+                        <LogOut className="h-4 w-4 flex-shrink-0" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Desktop: Show all buttons */}
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                  aria-label="Share conversation"
+                >
+                  <Share2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleExportConversation}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                  aria-label="Export conversation"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                <ThemeToggle />
+                <Link
+                  to="/settings"
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                  aria-label="Logout"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -998,16 +1075,66 @@ export function ChatLayout() {
         {!activeConversation ? (
           <>
             {/* Top bar for empty state */}
-            <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm gap-2">
-              <ThemeToggle />
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
-                aria-label="Logout"
-                title="Logout"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+            <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm gap-1 md:gap-2">
+              {/* Mobile: Show menu dropdown */}
+              <div className="md:hidden relative">
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+                  aria-label="More options"
+                  aria-expanded={showMobileMenu}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+                {showMobileMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowMobileMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-2 animate-fade-in">
+                      <Link
+                        to="/settings"
+                        onClick={() => setShowMobileMenu(false)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
+                      >
+                        <Settings className="h-4 w-4 flex-shrink-0" />
+                        <span>Settings</span>
+                      </Link>
+                      <div className="border-t border-border my-1" />
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setShowMobileMenu(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
+                      >
+                        <LogOut className="h-4 w-4 flex-shrink-0" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              {/* Desktop: Show buttons */}
+              <div className="hidden md:flex items-center gap-2">
+                <ThemeToggle />
+                <Link
+                  to="/settings"
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                  aria-label="Settings"
+                >
+                  <Settings className="h-4 w-4" />
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors"
+                  aria-label="Logout"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
             <EmptyState 
               onSelectPrompt={handleSendMessage} 

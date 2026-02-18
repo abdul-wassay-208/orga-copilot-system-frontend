@@ -436,7 +436,7 @@ export default function SignupPage() {
               type="submit"
               disabled={isLoading || otpCode.length !== 6}
               className={cn(
-                "w-full py-2.5 rounded-full font-medium text-sm transition-all duration-200",
+                "w-full py-3 sm:py-2.5 rounded-full font-medium text-sm transition-all duration-200 touch-manipulation",
                 "text-white hover:opacity-90",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
@@ -586,7 +586,7 @@ export default function SignupPage() {
                         }}
                         disabled={isLoading}
                         className={cn(
-                          "w-full py-2.5 rounded-lg font-medium text-sm transition-colors",
+                          "w-full py-3 sm:py-2.5 rounded-lg font-medium text-sm transition-colors touch-manipulation",
                           selectedPlan === plan.name
                             ? "bg-primary text-primary-foreground hover:bg-primary/90"
                             : "border border-chat-input-border bg-chat-input-bg text-foreground hover:bg-chat-hover",

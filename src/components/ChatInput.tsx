@@ -49,7 +49,7 @@ export function ChatInput({
 
   return (
     <div className="border-t border-chat-divider bg-background sticky bottom-0">
-      <div className="chat-width px-4 md:px-6 py-4 space-y-3">
+      <div className="chat-width px-4 sm:px-5 md:px-6 py-3 sm:py-4 space-y-3">
         {/* Input area */}
         <div
           className={cn(
@@ -90,14 +90,14 @@ export function ChatInput({
             onClick={handleSubmit}
             disabled={!value.trim() || disabled}
             className={cn(
-              "absolute right-2.5 bottom-2.5 p-2 rounded-lg transition-all duration-150",
+              "absolute right-2.5 bottom-2.5 p-2.5 sm:p-2 rounded-lg transition-all duration-150 touch-manipulation",
               value.trim() && !disabled
                 ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
             aria-label="Send message"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4 sm:h-4 sm:w-4" />
           </button>
         </div>
 
