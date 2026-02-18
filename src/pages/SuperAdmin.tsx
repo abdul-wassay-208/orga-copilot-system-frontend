@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -598,15 +598,6 @@ function TenantsTab() {
                             title="Click to change limit"
                           >
                             <span className="text-foreground">{used.toLocaleString()} / {formatMessageLimit(limit)}</span>
-                            <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden min-w-[64px]">
-                              <div
-                                className={cn(
-                                  "h-full rounded-full",
-                                  !unlimited && limit > 0 && (used / limit) >= 1 ? "bg-destructive" : "progress-gradient-fill"
-                                )}
-                                style={{ width: unlimited ? "0%" : `${limit > 0 ? Math.min((used / limit) * 100, 100) : 0}%` }}
-                              />
-                            </div>
                           </button>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
@@ -956,15 +947,7 @@ function UsageOverviewTab() {
             return (
             <div key={tenant.name} className="flex items-center gap-4">
               <div className="w-32 text-sm text-foreground truncate">{tenant.name}</div>
-              <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={cn(
-                    "h-full rounded-full",
-                    !unlim && pct >= 100 ? "bg-destructive" : "progress-gradient-fill"
-                  )}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
+              <div className="flex-1" />
               <div className="w-32 text-sm text-muted-foreground text-right">
                 {tenant.usage.toLocaleString()} / {formatMessageLimit(tenant.limit)}
               </div>
@@ -999,6 +982,7 @@ function CouponsTab() {
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [planName, setPlanName] = useState<"BASIC" | "PRO">("BASIC");
   const [assignToEmail, setAssignToEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [creating, setCreating] = useState(false);
   const [lastCreated, setLastCreated] = useState<{ code: string; planName: string; assignToEmail: string; expiresAt: string } | null>(null);
   const [coupons, setCoupons] = useState<CouponItem[]>([]);
@@ -1068,10 +1052,29 @@ function CouponsTab() {
     }
   };
 
+  const validateEmail = (email: string): boolean => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setEmailError("Email is required");
+      return false;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError("Please enter a valid email address");
+      return false;
+    }
+    setEmailError("");
+    return true;
+  };
+
+  const handleCloseCouponModal = () => {
+    setShowCouponModal(false);
+    setAssignToEmail("");
+    setEmailError("");
+  };
+
   const handleCreateCoupon = async () => {
     const email = assignToEmail.trim();
-    if (!email) {
-      toast.error("Enter the user's email");
+    if (!validateEmail(email)) {
       return;
     }
     setCreating(true);
@@ -1090,6 +1093,7 @@ function CouponsTab() {
         expiresAt: data.expiresAt || "",
       });
       setAssignToEmail("");
+      setEmailError("");
       setShowCouponModal(false);
       setCurrentPage(0);
       await loadCoupons(0);
@@ -1104,6 +1108,7 @@ function CouponsTab() {
   const openModal = () => {
     setPlanName("BASIC");
     setAssignToEmail("");
+    setEmailError("");
     setLastCreated(null);
     setShowCouponModal(true);
   };
@@ -1136,11 +1141,11 @@ function CouponsTab() {
       {/* Coupon creation modal */}
       {showCouponModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={() => setShowCouponModal(false)} />
+          <div className="absolute inset-0 bg-foreground/20 backdrop-blur-sm" onClick={handleCloseCouponModal} />
           <div className="relative bg-card border border-border rounded-xl shadow-lg p-6 max-w-sm mx-4 w-full space-y-5 animate-scale-in">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-foreground">Create coupon</h3>
-              <button onClick={() => setShowCouponModal(false)} className="p-1.5 rounded-lg hover:bg-chat-hover text-muted-foreground transition-colors">
+              <button onClick={handleCloseCouponModal} className="p-1.5 rounded-lg hover:bg-chat-hover text-muted-foreground transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1152,7 +1157,7 @@ function CouponsTab() {
                 onChange={(e) => setPlanName(e.target.value as "BASIC" | "PRO")}
                 className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
               >
-                <option value="BASIC">Basic ($20 / 20 messages)</option>
+                <option value="BASIC">Basic ($20 / 50 messages)</option>
                 <option value="PRO">Pro ($50 / 200 messages)</option>
               </select>
             </div>
@@ -1161,19 +1166,33 @@ function CouponsTab() {
               <input
                 type="email"
                 value={assignToEmail}
-                onChange={(e) => setAssignToEmail(e.target.value)}
+                onChange={(e) => {
+                  setAssignToEmail(e.target.value);
+                  if (emailError) {
+                    validateEmail(e.target.value);
+                  }
+                }}
+                onBlur={(e) => validateEmail(e.target.value)}
                 placeholder="user@company.com"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-chat-input-border bg-chat-input-bg text-sm outline-none focus:border-chat-input-focus"
+                className={cn(
+                  "w-full px-3.5 py-2.5 rounded-lg border bg-chat-input-bg text-sm outline-none transition-colors",
+                  emailError
+                    ? "border-destructive focus:border-destructive focus:ring-2 focus:ring-destructive/20"
+                    : "border-chat-input-border focus:border-chat-input-focus focus:ring-2 focus:ring-chat-input-focus/20"
+                )}
               />
+              {emailError && (
+                <p className="text-xs text-destructive">{emailError}</p>
+              )}
             </div>
             <p className="text-xs text-muted-foreground">Coupon code expires in 1 month. After the user applies it, plan access lasts 1 month from apply date, then falls back to Free.</p>
             <div className="flex gap-3 justify-end pt-2">
-              <button onClick={() => setShowCouponModal(false)} className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors">
+              <button onClick={handleCloseCouponModal} className="px-4 py-2.5 rounded-lg border border-chat-input-border text-sm font-medium hover:bg-chat-hover transition-colors">
                 Cancel
               </button>
               <button
                 onClick={handleCreateCoupon}
-                disabled={creating || !assignToEmail.trim()}
+                disabled={creating || !assignToEmail.trim() || !!emailError}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-all duration-200"
                 style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
               >
@@ -1379,6 +1398,8 @@ function SuperAdminUsersTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParam, setSearchParam] = useState("");
   const pageSize = 10;
+  const userRowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
+  const detailPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setSearchParam(searchQuery), 500);
@@ -1408,10 +1429,18 @@ function SuperAdminUsersTab() {
       setOverrideInput("");
       return;
     }
+    
     adminClient.get(`/api/admin/super/users/${selectedUserId}`).then((r) => {
       const d = r.data;
       setUserDetail(d);
       setOverrideInput(d?.overriddenMessageLimit != null ? String(d.overriddenMessageLimit) : "");
+      
+      // Scroll to detail panel after it loads
+      setTimeout(() => {
+        if (detailPanelRef.current) {
+          detailPanelRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 200);
     }).catch(() => {
       toast.error("Failed to load user details");
       setUserDetail(null);
@@ -1484,9 +1513,25 @@ function SuperAdminUsersTab() {
                   return (
                   <tr
                     key={u.id}
-                    onClick={() => setSelectedUserId(u.id)}
+                    ref={(el) => {
+                      if (el) {
+                        userRowRefs.current.set(u.id, el);
+                      } else {
+                        userRowRefs.current.delete(u.id);
+                      }
+                    }}
+                    onClick={() => {
+                      setSelectedUserId(u.id);
+                      // Scroll to row immediately when clicked
+                      setTimeout(() => {
+                        const rowRef = userRowRefs.current.get(u.id);
+                        if (rowRef) {
+                          rowRef.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }
+                      }, 50);
+                    }}
                     className={cn(
-                      "border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer",
+                      "border-b border-border last:border-0 hover:bg-muted/20 cursor-pointer transition-colors",
                       selectedUserId === u.id && "bg-primary/5"
                     )}
                   >
@@ -1531,7 +1576,7 @@ function SuperAdminUsersTab() {
       </div>
 
       {userDetail && (
-        <div className="rounded-xl border border-border p-5 space-y-4">
+        <div ref={detailPanelRef} className="rounded-xl border border-border p-5 space-y-4">
           <h3 className="text-sm font-semibold text-foreground">User: {userDetail.email}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>

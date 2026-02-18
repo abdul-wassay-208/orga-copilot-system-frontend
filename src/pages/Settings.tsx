@@ -83,6 +83,10 @@ export default function SettingsPage() {
       setOriginalName(userFullName);
       setEmail(userData.email || "");
       setTwoFactorEnabled(userData.twoFactorEnabled || false);
+      // Set user role for conditional rendering
+      const roles = userData.roles || [];
+      const role = userData.role || "";
+      setUserRole(roles.includes("SUPER_ADMIN") || role === "SUPER_ADMIN" ? "SUPER_ADMIN" : role);
     } catch (error: any) {
       console.error("Failed to load user data:", error);
       toast.error("Failed to load profile information");
@@ -261,16 +265,25 @@ export default function SettingsPage() {
       }, 1500);
     } catch (error: any) {
       console.error("Failed to change password:", error);
+      const status = error?.response?.status;
       const errorMessage = error?.response?.data?.message || "Failed to change password. Please try again.";
       
+      // Handle 401 (Unauthorized) - wrong current password
+      if (status === 401 || errorMessage.toLowerCase().includes("incorrect") || errorMessage.toLowerCase().includes("wrong")) {
+        setPasswordErrors({ current: "Current password is incorrect" });
+        toast.error("Current password is incorrect");
+        return;
+      }
+      
       // Set specific field errors if available
-      if (errorMessage.includes("Current password")) {
+      if (errorMessage.includes("Current password") || errorMessage.toLowerCase().includes("current")) {
         setPasswordErrors({ current: errorMessage });
-      } else if (errorMessage.includes("New password")) {
+      } else if (errorMessage.includes("New password") || errorMessage.toLowerCase().includes("new password")) {
         setPasswordErrors({ new: errorMessage });
-      } else if (errorMessage.includes("confirmation") || errorMessage.includes("match")) {
+      } else if (errorMessage.includes("confirmation") || errorMessage.includes("match") || errorMessage.toLowerCase().includes("confirm")) {
         setPasswordErrors({ confirm: errorMessage });
       } else {
+        // Default to showing error on current password field
         setPasswordErrors({ current: errorMessage });
       }
       
@@ -441,22 +454,39 @@ export default function SettingsPage() {
             </div>
 
             {/* Change Password */}
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  if (showPasswordForm) {
-                    handleCancelPasswordChange();
-                  } else {
-                    setShowPasswordForm(true);
-                  }
-                }}
-                className="text-sm text-primary hover:text-primary/80 transition-colors"
-              >
-                {showPasswordForm ? "Cancel" : "Change password"}
-              </button>
+            <div className="p-5 rounded-lg border border-border bg-card space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <img src="/assets/lock.svg" alt="Lock" className="h-4 w-4 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
+                    <h3 className="text-sm font-semibold text-foreground">
+                      Change Password
+                    </h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Update your account password. You'll need to log in again after changing it.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (showPasswordForm) {
+                      handleCancelPasswordChange();
+                    } else {
+                      setShowPasswordForm(true);
+                    }
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white hover:opacity-90",
+                    showPasswordForm && "opacity-75"
+                  )}
+                  style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
+                >
+                  {showPasswordForm ? "Cancel" : "Change password"}
+                </button>
+              </div>
 
               {showPasswordForm && (
-                <div className="space-y-3 p-4 rounded-lg border border-border bg-card animate-fade-in">
+                <div className="space-y-3 pt-4 border-t border-border animate-fade-in">
                   {/* Current Password */}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-foreground">
@@ -768,70 +798,59 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Usage Section */}
-        <section id="usage" className="space-y-4">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-            Usage
-          </h2>
-          <div className="p-4 rounded-lg border border-border bg-card space-y-3">
-            {isLoadingUsage ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Messages this month</span>
-                  <span className="font-medium text-foreground">
-                    {usageData.messagesUsed} / {usageData.messagesLimit}
-                  </span>
+        {/* Usage Section - Hidden for Super Admins */}
+        {userRole !== "SUPER_ADMIN" && (
+          <section id="usage" className="space-y-4">
+            <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Usage
+            </h2>
+            <div className="p-4 rounded-lg border border-border bg-card space-y-3">
+              {isLoadingUsage ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-                {!usageData.unlimited && (
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-300",
-                      usageData.percentUsed >= 100
-                        ? "bg-destructive"
-                        : "progress-gradient-fill"
-                    )}
-                    style={{ width: `${Math.min(usageData.percentUsed, 100)}%` }}
-                  />
-                </div>
-                )}
-                {!usageData.unlimited && usageData.percentUsed >= 80 && (
-                  <div 
-                    className="p-3 border space-y-2 animate-fade-in border-border"
-                    style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
-                  >
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-[#221F20]" />
-                      <div className="flex-1 space-y-1">
-                        <p className="text-sm font-medium text-[#221F20]">
-                          {usageData.percentUsed >= 100 
-                            ? "Usage limit reached"
-                            : "Approaching usage limit"}
-                        </p>
-                        <p className="text-xs leading-relaxed text-[#221F20]/80">
-                          {usageData.percentUsed >= 100 
-                            ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages to avoid service interruption."
-                            : usageData.unlimited
-                            ? `${usageData.messagesUsed} messages used this month (Unlimited).`
-                            : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages this month (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
-                        </p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Messages this month</span>
+                    <span className="font-medium text-foreground">
+                      {usageData.messagesUsed} / {usageData.messagesLimit}
+                    </span>
+                  </div>
+                  {!usageData.unlimited && usageData.percentUsed >= 80 && (
+                    <div 
+                      className="p-3 border space-y-2 animate-fade-in border-border"
+                      style={{ background: 'linear-gradient(to right, #FEBE40 0%, #E40B7B 100%)' }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 text-[#221F20]" />
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium text-[#221F20]">
+                            {usageData.percentUsed >= 100 
+                              ? "Usage limit reached"
+                              : "Approaching usage limit"}
+                          </p>
+                          <p className="text-xs leading-relaxed text-[#221F20]/80">
+                            {usageData.percentUsed >= 100 
+                              ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages to avoid service interruption."
+                              : usageData.unlimited
+                              ? `${usageData.messagesUsed} messages used this month (Unlimited).`
+                              : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages this month (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                {usageData.percentUsed < 80 && (
-                  <p className="text-xs text-muted-foreground">
-                    Usage resets at the start of each month.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        </section>
+                  )}
+                  {usageData.percentUsed < 80 && (
+                    <p className="text-xs text-muted-foreground">
+                      Usage resets at the start of each month.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Billing Section (Admin Only) */}
         {(userRole === "TENANT_ADMIN" || userRole === "SUPER_ADMIN") && (

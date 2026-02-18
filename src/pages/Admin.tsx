@@ -356,6 +356,11 @@ function UsersTab() {
                   </span>
                 )}
               </p>
+              {totalElements > activeUsersCount && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {totalElements - activeUsersCount} pending invitation{totalElements - activeUsersCount !== 1 ? 's' : ''}
+                </p>
+              )}
             </div>
           </div>
           <button
