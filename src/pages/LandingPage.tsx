@@ -10,7 +10,8 @@ import {
   GraduationCap,
   Lightbulb,
   Target,
-  Brain
+  Brain,
+  Play
 } from 'lucide-react';
 import { Navigation } from '@/components/landing/Navigation';
 import { GradientButton } from '@/components/landing/GradientButton';
@@ -78,6 +79,24 @@ export default function LandingPage() {
           >
             No jargon. No generic advice. Just a better way to think about your toughest team challenges.
           </motion.p>
+        </div>
+      </section>
+
+      {/* Demo Video Section */}
+      <section className="relative py-16 px-6">
+        <div className="relative z-10 max-w-4xl mx-auto">
+          <motion.div
+            {...fadeInUp}
+            className="aspect-video w-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-gray-200/50"
+          >
+            <iframe
+              src="https://www.youtube.com/embed/A0ablPM467w?autoplay=1&mute=1"
+              title="Evo Associates AI Assistant Demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="w-full h-full"
+            />
+          </motion.div>
         </div>
       </section>
 
