@@ -90,7 +90,7 @@ export default function LandingPage() {
             className="aspect-video w-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-gray-200/50"
           >
             <iframe
-              src="https://www.youtube.com/embed/A0ablPM467w?autoplay=1&mute=1"
+              src="https://www.youtube.com/embed/A0ablPM467w"
               title="Evo Associates AI Assistant Demo"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
