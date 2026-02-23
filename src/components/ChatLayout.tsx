@@ -49,10 +49,10 @@ export function ChatLayout() {
   const [editText, setEditText] = useState("");
   const [showShareModal, setShowShareModal] = useState(false);
   const [deleteConversationId, setDeleteConversationId] = useState<string | null>(null);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const usageDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastErrorToastRef = useRef<{ message: string; at: number } | null>(null);
+  const hasShown80PercentModalRef = useRef(false);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -62,6 +62,8 @@ export function ChatLayout() {
 
   // Free plan: 0 message limit — disable input and prompts. Super admin has unlimited.
   const isFreeUser = usageData != null && !usageData.unlimited && usageData.messagesLimit <= 0;
+  // Employees (invited users) cannot upgrade; admins can.
+  const isEmployee = !userRoles.includes("TENANT_ADMIN") && !userRoles.includes("SUPER_ADMIN");
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -100,9 +102,11 @@ export function ChatLayout() {
       // Reset dismissed warning if usage drops below 80%
       if (data.percentUsed < 80) {
         setDismissedWarning(false);
+        hasShown80PercentModalRef.current = false;
       }
-      // Show usage alert popup at 80%, 90%, or 100% (user, admin, superadmin see this)
-      if (data.percentUsed >= 80 || data.usageAlert90) {
+      // Show 80%/90%/100% modal only once per threshold crossing (not on every refresh)
+      if ((data.percentUsed >= 80 || data.usageAlert90) && !hasShown80PercentModalRef.current) {
+        hasShown80PercentModalRef.current = true;
         setShowUsage90Alert(true);
       }
     } catch (error: any) {
@@ -255,7 +259,6 @@ export function ChatLayout() {
       setConversations((prev) => [newConv, ...prev]);
       setActiveConversationId(newConv.id);
       setMobileMenuOpen(false);
-      setShowMobileMenu(false);
     } catch (error: any) {
       console.error("Failed to create conversation:", error);
       toast.error("Failed to create new conversation");
@@ -265,7 +268,6 @@ export function ChatLayout() {
   const handleSelectConversation = async (id: string) => {
     setActiveConversationId(id);
     setMobileMenuOpen(false);
-    setShowMobileMenu(false);
     setConversationLimitReachedForActive(false);
     // Load conversation messages if not already loaded
     const conv = conversations.find((c) => c.id === id);
@@ -570,7 +572,9 @@ export function ChatLayout() {
     
     // Check usage limit before sending (super admin has unlimited and is not blocked)
     if (usageData && !usageData.unlimited && usageData.percentUsed >= 100) {
-      toast.error(`You've reached your monthly message limit of ${usageData.messagesLimit} messages. Please contact your administrator to upgrade your plan.`);
+      toast.error(isEmployee
+        ? `You've reached your monthly message limit of ${usageData.messagesLimit} messages. Contact your administrator to request a higher limit.`
+        : `You've reached your monthly message limit of ${usageData.messagesLimit} messages. Please contact your administrator to upgrade your plan.`);
       return;
     }
 
@@ -921,20 +925,17 @@ export function ChatLayout() {
       {/* Mobile menu button */}
       <button
         onClick={() => setMobileMenuOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-3 rounded-lg bg-card border border-border shadow-lg hover:bg-chat-hover transition-colors touch-manipulation"
+        className="md:hidden fixed top-3 left-3 z-50 w-9 h-9 p-0 rounded-lg bg-card border border-border shadow-lg hover:bg-chat-hover transition-colors touch-manipulation flex items-center justify-center flex-shrink-0"
         aria-label="Open menu"
       >
-        <Menu className="h-5 w-5" />
+        <Menu className="h-4 w-4" />
       </button>
 
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
           className="md:hidden fixed inset-0 bg-foreground/20 backdrop-blur-sm z-40 animate-fade-in"
-          onClick={() => {
-            setMobileMenuOpen(false);
-            setShowMobileMenu(false);
-          }}
+          onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
@@ -956,6 +957,10 @@ export function ChatLayout() {
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           isTenantAdmin={userRoles.includes("TENANT_ADMIN")}
           isSuperAdmin={userRoles.includes("SUPER_ADMIN")}
+          onShareClick={() => setShowShareModal(true)}
+          onExportClick={handleExportConversation}
+          onLogout={handleLogout}
+          onCloseMobile={() => setMobileMenuOpen(false)}
         />
       </div>
 
@@ -974,68 +979,7 @@ export function ChatLayout() {
                 <img src="/assets/lock.svg" alt="Lock" className="h-3 w-3 dark:brightness-0 dark:invert" style={{ filter: 'brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%)' }} />
                 <span className="text-xs text-primary font-medium">Private</span>
               </div>
-              {/* Mobile: Show menu dropdown, Desktop: Show all buttons */}
-              <div className="md:hidden relative">
-                <button
-                  onClick={() => setShowMobileMenu(!showMobileMenu)}
-                  className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
-                  aria-label="More options"
-                  aria-expanded={showMobileMenu}
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-                {showMobileMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowMobileMenu(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-2 animate-fade-in">
-                      <button
-                        onClick={() => {
-                          setShowShareModal(true);
-                          setShowMobileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
-                      >
-                        <Share2 className="h-4 w-4 flex-shrink-0" />
-                        <span>Share</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleExportConversation();
-                          setShowMobileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
-                      >
-                        <Download className="h-4 w-4 flex-shrink-0" />
-                        <span>Export</span>
-                      </button>
-                      <div className="border-t border-border my-1" />
-                      <Link
-                        to="/settings"
-                        onClick={() => setShowMobileMenu(false)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
-                      >
-                        <Settings className="h-4 w-4 flex-shrink-0" />
-                        <span>Settings</span>
-                      </Link>
-                      <div className="border-t border-border my-1" />
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setShowMobileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
-                      >
-                        <LogOut className="h-4 w-4 flex-shrink-0" />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              {/* Desktop: Show all buttons */}
+              {/* Mobile: actions are in sidebar (single hamburger); Desktop: Show all buttons */}
               <div className="hidden md:flex items-center gap-2">
                 <button
                   onClick={() => setShowShareModal(true)}
@@ -1076,46 +1020,7 @@ export function ChatLayout() {
           <>
             {/* Top bar for empty state */}
             <div className="h-14 border-b border-border flex items-center justify-end px-4 md:px-6 bg-background/80 backdrop-blur-sm gap-1 md:gap-2">
-              {/* Mobile: Show menu dropdown */}
-              <div className="md:hidden relative">
-                <button
-                  onClick={() => setShowMobileMenu(!showMobileMenu)}
-                  className="p-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
-                  aria-label="More options"
-                  aria-expanded={showMobileMenu}
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-                {showMobileMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowMobileMenu(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-2 w-52 sm:w-56 bg-card border border-border rounded-lg shadow-xl z-50 py-2 animate-fade-in">
-                      <Link
-                        to="/settings"
-                        onClick={() => setShowMobileMenu(false)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-chat-hover transition-colors touch-manipulation"
-                      >
-                        <Settings className="h-4 w-4 flex-shrink-0" />
-                        <span>Settings</span>
-                      </Link>
-                      <div className="border-t border-border my-1" />
-                      <button
-                        onClick={() => {
-                          handleLogout();
-                          setShowMobileMenu(false);
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors touch-manipulation"
-                      >
-                        <LogOut className="h-4 w-4 flex-shrink-0" />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Mobile: actions are in sidebar (single hamburger) */}
               {/* Desktop: Show buttons */}
               <div className="hidden md:flex items-center gap-2">
                 <ThemeToggle />
@@ -1144,16 +1049,16 @@ export function ChatLayout() {
               onSend={handleSendMessage} 
               disabled={isStreaming || isFreeUser || (usageData?.percentUsed >= 100)}
               placeholder={isFreeUser 
-                ? "Upgrade your plan to send messages."
+                ? (isEmployee ? "Contact your administrator to request messaging access." : "Upgrade your plan to send messages.")
                 : usageData?.percentUsed >= 100 
-                  ? "Monthly message limit reached. Contact your administrator to upgrade."
+                  ? (isEmployee ? "Message limit reached. Contact your administrator to request a higher limit." : "Monthly message limit reached. Contact your administrator to upgrade.")
                   : "What's on your mind?"}
-              onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? () => navigate("/billing") : undefined}
+              onDisabledClick={(isFreeUser || (usageData?.percentUsed >= 100)) ? (isEmployee ? () => navigate("/settings#usage") : () => navigate("/billing")) : undefined}
             />
           </>
         ) : (
           <>
-            {/* Free plan: upgrade to send messages */}
+            {/* Free plan: upgrade or contact admin to send messages */}
             {isFreeUser && !dismissedWarning && (
               <div className="mx-4 md:mx-6 mt-4 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-2 animate-fade-in">
                 <div className="flex items-start gap-2">
@@ -1161,14 +1066,20 @@ export function ChatLayout() {
                   <div className="flex-1 space-y-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">Free plan</p>
                     <p className="text-xs leading-relaxed text-muted-foreground">
-                      Upgrade your plan to send messages. Go to Settings to choose Basic or Pro, or use a coupon code if you have one.
+                      {isEmployee
+                        ? "Contact your administrator to request messaging access for your account."
+                        : "Upgrade your plan to send messages. Go to Settings to choose Basic or Pro, or use a coupon code if you have one."}
                     </p>
-                    <Link
-                      to="/billing"
-                      className="text-xs font-medium text-primary hover:text-primary/80 underline"
-                    >
-                      Upgrade plan
-                    </Link>
+                    {isEmployee ? (
+                      <span className="text-xs font-medium text-primary">Contact administrator</span>
+                    ) : (
+                      <Link
+                        to="/billing"
+                        className="text-xs font-medium text-primary hover:text-primary/80 underline"
+                      >
+                        Upgrade plan
+                      </Link>
+                    )}
                   </div>
                   <button
                     onClick={() => setDismissedWarning(true)}
@@ -1196,17 +1107,28 @@ export function ChatLayout() {
                     </p>
                     <p className="text-xs leading-relaxed text-[#221F20]/80">
                       {usageData.percentUsed >= 100 
-                        ? "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages."
+                        ? (isEmployee ? "You've reached your monthly message limit. Contact your administrator to request a higher limit." : "You've reached your monthly message limit. Contact your administrator to upgrade your plan or request additional messages.")
                         : usageData.unlimited
                         ? `${usageData.messagesUsed} messages used this month (Unlimited).`
-                        : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`}
+                        : (isEmployee ? `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to request a higher limit.` : `You've used ${usageData.messagesUsed} of ${usageData.messagesLimit} messages (${usageData.percentUsed}%). Contact your administrator to upgrade your plan or request additional messages to avoid service interruption.`)}
                     </p>
-                    <Link
-                      to={usageData.percentUsed >= 100 ? "/billing" : "/settings#usage"}
-                      className="text-xs font-medium text-[#221F20] hover:text-[#221F20]/80 underline"
-                    >
-                      {usageData.percentUsed >= 100 ? "Upgrade plan" : "View usage details"}
-                    </Link>
+                    {usageData.percentUsed >= 100 && !isEmployee ? (
+                      <Link
+                        to="/billing"
+                        className="text-xs font-medium text-[#221F20] hover:text-[#221F20]/80 underline"
+                      >
+                        Upgrade plan
+                      </Link>
+                    ) : isEmployee ? (
+                      <span className="text-xs font-medium text-[#221F20]">Contact administrator</span>
+                    ) : (
+                      <Link
+                        to="/settings#usage"
+                        className="text-xs font-medium text-[#221F20] hover:text-[#221F20]/80 underline"
+                      >
+                        View usage details
+                      </Link>
+                    )}
                   </div>
                   <button
                     onClick={() => setDismissedWarning(true)}
@@ -1230,9 +1152,9 @@ export function ChatLayout() {
                   onSend={handleSendMessage} 
                   disabled={isStreaming || isFreeUser || (usageData?.percentUsed >= 100)}
                   placeholder={isFreeUser 
-                    ? "Upgrade your plan to send messages."
+                    ? (isEmployee ? "Contact your administrator to request messaging access." : "Upgrade your plan to send messages.")
                     : usageData?.percentUsed >= 100 
-                      ? "Monthly message limit reached. Contact your administrator to upgrade."
+                      ? (isEmployee ? "Message limit reached. Contact your administrator to request a higher limit." : "Monthly message limit reached. Contact your administrator to upgrade.")
                       : "What's on your mind?"}
                   showPromptChips={!isFreeUser}
                   onSelectPrompt={handleSendMessage}
@@ -1275,9 +1197,9 @@ export function ChatLayout() {
                   onSend={handleSendMessage} 
                   disabled={isStreaming || isFreeUser || (usageData?.percentUsed >= 100)}
                   placeholder={isFreeUser 
-                    ? "Upgrade your plan to send messages."
+                    ? (isEmployee ? "Contact your administrator to request messaging access." : "Upgrade your plan to send messages.")
                     : usageData?.percentUsed >= 100 
-                      ? "Monthly message limit reached. Contact your administrator to upgrade."
+                      ? (isEmployee ? "Message limit reached. Contact your administrator to request a higher limit." : "Monthly message limit reached. Contact your administrator to upgrade.")
                       : "What's on your mind?"}
                   showPromptChips={!isFreeUser && activeConversation.messages.length < 3 && !(usageData?.percentUsed >= 100)}
                   onSelectPrompt={handleSendMessage}
@@ -1357,14 +1279,16 @@ export function ChatLayout() {
             </p>
             <p className="text-sm text-white/80">
               {usageData?.percentUsed >= 100
-                ? "You've reached 100% of your plan's message limit. Consider upgrading to avoid interruption."
+                ? (isEmployee ? "You've reached your message limit. Contact your administrator to request a higher limit." : "You've reached 100% of your plan's message limit. Consider upgrading to avoid interruption.")
                 : usageData?.percentUsed >= 90
-                ? "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption."
-                : "You've reached 80% of your plan's message limit. Consider upgrading to avoid interruption."}
+                ? (isEmployee ? "You've used 90% of your message limit. Contact your administrator to request a higher limit." : "You've reached 90% of your plan's message limit. Consider upgrading to avoid interruption.")
+                : (isEmployee ? "You've used 80% of your message limit. Contact your administrator to request a higher limit." : "You've reached 80% of your plan's message limit. Consider upgrading to avoid interruption.")}
             </p>
             <div className="flex gap-2">
-              {usageData?.percentUsed >= 90 ? (
+              {usageData?.percentUsed >= 90 && !isEmployee ? (
                 <Link to="/billing" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Upgrade</Link>
+              ) : isEmployee ? (
+                <button onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">Contact administrator</button>
               ) : (
                 <Link to="/settings#usage" onClick={() => setShowUsage90Alert(false)} className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium text-center">View Usage</Link>
               )}

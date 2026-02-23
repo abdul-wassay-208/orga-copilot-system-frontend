@@ -359,6 +359,8 @@ function TenantsTab() {
     }
   };
 
+  const usersSectionRef = useRef<HTMLDivElement>(null);
+
   const toggleTenantUsers = (tenant: Tenant) => {
     if (expandedTenantId === tenant.id) {
       setExpandedTenantId(null);
@@ -368,6 +370,16 @@ function TenantsTab() {
       loadTenantUsers(tenant.id);
     }
   };
+
+  // Scroll to expanded users section when admin/tenant is expanded
+  useEffect(() => {
+    if (expandedTenantId && usersSectionRef.current) {
+      const timer = setTimeout(() => {
+        usersSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, loadingTenantUsers ? 400 : 50); // Slightly longer delay while loading so user sees scroll to section
+      return () => clearTimeout(timer);
+    }
+  }, [expandedTenantId, loadingTenantUsers]);
 
   const openLimitModal = (tenant: Tenant, e?: React.MouseEvent) => {
     e?.preventDefault();
@@ -635,7 +647,7 @@ function TenantsTab() {
             </div>
             {/* Expanded user list */}
             {expandedTenantId && (
-              <div className="border-t border-border bg-muted/20 px-4 py-3">
+              <div ref={usersSectionRef} className="border-t border-border bg-muted/20 px-4 py-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Users in this organization</p>
                 {loadingTenantUsers ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">

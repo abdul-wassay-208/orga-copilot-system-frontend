@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User } from "lucide-react";
+import { Plus, MessageSquare, Pencil, Trash2, PanelLeftClose, PanelLeft, Settings, User, Share2, Download, LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Conversation } from "@/types/chat";
@@ -6,6 +6,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { adminClient } from "@/lib/api-client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ChatSidebarProps {
   conversations: Conversation[];
@@ -18,6 +19,11 @@ interface ChatSidebarProps {
   onToggleCollapse: () => void;
   isTenantAdmin?: boolean;
   isSuperAdmin?: boolean;
+  /** Mobile-only: show Share/Export/Logout in sidebar; when used, parent should close mobile sidebar */
+  onShareClick?: () => void;
+  onExportClick?: () => void;
+  onLogout?: () => void;
+  onCloseMobile?: () => void;
 }
 
 export function ChatSidebar({
@@ -31,8 +37,14 @@ export function ChatSidebar({
   onToggleCollapse,
   isTenantAdmin = false,
   isSuperAdmin = false,
+  onShareClick,
+  onExportClick,
+  onLogout,
+  onCloseMobile,
 }: ChatSidebarProps) {
   const { theme } = useTheme();
+  const isMobile = useIsMobile();
+  const showMobileActions = isMobile && (onShareClick ?? onExportClick ?? onLogout);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -92,7 +104,7 @@ export function ChatSidebar({
   }
 
   return (
-    <div className="w-full sm:w-72 md:w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left overflow-hidden">
+    <div className="w-full max-w-[320px] sm:w-72 md:w-64 bg-sidebar border-r border-sidebar-border flex flex-col h-full animate-slide-in-left overflow-hidden">
 
       {/* Header with product name - Sticky */}
       <div className="p-3 border-b border-sidebar-border space-y-3 flex-shrink-0 bg-sidebar">
@@ -208,6 +220,49 @@ export function ChatSidebar({
 
       {/* Footer - Sticky */}
       <div className="px-3 py-2.5 border-t border-sidebar-border flex-shrink-0 bg-sidebar">
+        {/* Mobile: Share, Export, Logout in one place (single hamburger) */}
+        {showMobileActions && (
+          <div className="mb-2 space-y-1">
+            <Link
+              to="/settings"
+              onClick={() => onCloseMobile?.()}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Link>
+            {onShareClick && activeConversationId && (
+              <button
+                type="button"
+                onClick={() => { onShareClick(); onCloseMobile?.(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
+              >
+                <Share2 className="h-4 w-4" />
+                Share
+              </button>
+            )}
+            {onExportClick && activeConversationId && (
+              <button
+                type="button"
+                onClick={() => { onExportClick(); onCloseMobile?.(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-hover transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </button>
+            )}
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => { onLogout(); onCloseMobile?.(); }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            )}
+          </div>
+        )}
         {/* Admin links - shown based on role */}
         {(isTenantAdmin || isSuperAdmin) && (
           <div className="mb-2 space-y-1">
@@ -242,13 +297,15 @@ export function ChatSidebar({
           </div>
           <div className="flex items-center gap-1 sm:gap-0.5 flex-shrink-0">
             <ThemeToggle />
-            <Link
-              to="/settings"
-              className="p-2 sm:p-1.5 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground flex-shrink-0 touch-manipulation"
-              aria-label="Settings"
-            >
-              <Settings className="h-4 w-4 sm:h-4 sm:w-4" />
-            </Link>
+            {!isMobile && (
+              <Link
+                to="/settings"
+                className="p-2 sm:p-1.5 rounded-md transition-colors hover:bg-sidebar-hover text-sidebar-foreground/70 hover:text-sidebar-foreground flex-shrink-0 touch-manipulation"
+                aria-label="Settings"
+              >
+                <Settings className="h-4 w-4 sm:h-4 sm:w-4" />
+              </Link>
+            )}
           </div>
         </div>
       </div>
