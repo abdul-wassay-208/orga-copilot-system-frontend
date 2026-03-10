@@ -4,7 +4,7 @@ export default function TermsOfUse() {
       <div className="max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Terms of Use</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Terms of Service</h1>
           <p className="text-sm text-muted-foreground">
             Last updated: {new Date().toLocaleDateString()}
           </p>
@@ -12,63 +12,473 @@ export default function TermsOfUse() {
 
         {/* Content */}
         <div className="prose prose-sm max-w-none text-foreground space-y-6">
+          <p className="text-muted-foreground leading-relaxed">
+            Welcome to Evo Associates! Before you access our services, please read these Terms of Service.
+          </p>
+          <p className="text-muted-foreground leading-relaxed">
+            These Commercial Terms of Service (&quot;Terms&quot;) are an agreement between Evo Associates and you,
+            individually, or the organization, company, or other entity that you represent (&quot;Customer&quot;).
+            &quot;Evo Associates&quot; means Evo Associates, LLC. They govern Customer&apos;s use of Evo Associates
+            services and any other Evo Associates offerings that reference these Terms, as well as all related
+            Evo Associates tools, documentation and services (the &quot;Services&quot;). These Terms are effective on
+            the earlier of the date that Customer first electronically consents to a version of these Terms and the
+            date that Customer first accesses the Services (&quot;Effective Date&quot;).
+          </p>
+
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">1. Acceptance of Terms</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">A. Services</h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Overview</h3>
             <p className="text-muted-foreground leading-relaxed">
-              By accessing and using this service, you accept and agree to be bound by the terms and provision of this agreement.
+              Subject to these Terms, Evo Associates gives Customer permission to use the Services, including
+              to power products and services Customer makes available to its own customers and end users
+              (&quot;Users&quot;) at the Enterprise tier. Note: this provision applies only where Customer is an individual
+              subscriber, Customer is the sole User and all references to Users apply to Customer directly.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">2. Feedback</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              If Customer provides (in its sole discretion) Evo Associates with feedback regarding the Services,
+              Evo Associates may use that feedback at its own risk and without obligation to Customer.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">2. Use License</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">B. Customer Content</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Permission is granted to temporarily access the materials on our website for personal, non-commercial transitory viewing only. 
-              This is the grant of a license, not a transfer of title, and under this license you may not:
-            </p>
-            <ul className="list-disc list-inside text-muted-foreground space-y-2 ml-4">
-              <li>Modify or copy the materials</li>
-              <li>Use the materials for any commercial purpose or for any public display</li>
-              <li>Attempt to reverse engineer any software contained on the website</li>
-              <li>Remove any copyright or other proprietary notations from the materials</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">3. User Account</h2>
-            <p className="text-muted-foreground leading-relaxed">
-              You are responsible for maintaining the confidentiality of your account and password. You agree to accept 
-              responsibility for all activities that occur under your account or password.
+              As between the parties and to the extent permitted by applicable law, Evo Associates agrees that
+              Customer (a) retains all rights to its Inputs, and (b) owns its Outputs. Evo Associates disclaims
+              any rights it receives to the Customer Content under these Terms. Subject to Customer&apos;s
+              compliance with these Terms, Evo Associates hereby assigns to Customer its right, title and
+              interest (if any) in and to Outputs. Evo Associates may not train models on Customer Content
+              from Services. &quot;Inputs&quot; means submissions to the Services by Customer or its Users and
+              &quot;Outputs&quot; means responses generated by the Services to Inputs (Inputs and Outputs together
+              are &quot;Customer Content&quot;).
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">4. Service Availability</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">
+              C. Trust and Safety; Restrictions
+            </h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Compliance</h3>
             <p className="text-muted-foreground leading-relaxed">
-              We reserve the right to modify or discontinue the service at any time without prior notice. We shall not be 
-              liable to you or any third party for any modification, suspension, or discontinuance of the service.
+              Each party will comply with all laws applicable to the provision (for Evo Associates) and use (for
+              Customer) of the Services, including any applicable data privacy laws.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              2. Policies and Service Terms
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer and its Users may only use the Services in compliance with these Terms, including (a)
+              the Usage Policy below which is incorporated by reference into these Terms. Customer must
+              cooperate with reasonable requests for information from Evo Associates to support compliance
+              with its Usage Policy, including to verify Customer&apos;s identity and use of the Services. Note:
+              individual subscribers are themselves the sole User and bear these obligations directly.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              3. Limitations of Outputs; Notice to Users
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              It is Customer&apos;s responsibility to evaluate whether Outputs are appropriate for Customer&apos;s use
+              case, including where human review is appropriate, before using or sharing Outputs. Customer
+              acknowledges, and must notify its Users, that factual assertions in Outputs should not be relied
+              upon without independently checking their accuracy, as they may be false, incomplete,
+              misleading or not reflective of recent events or information. Customer further acknowledges that
+              Outputs may contain content inconsistent with Evo Associates&apos; views. Where Customer is an
+              individual, Customer is solely responsible for evaluating Outputs before relying on them.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">4. Use Restrictions</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer may not and must not attempt to (a) access the Services to build a competing product
+              or service, including to train competing AI models or resell the Services except as expressly
+              approved by Evo Associates; (b) reverse engineer or duplicate the Services; or (c) support any
+              third party&apos;s attempt at any of the conduct restricted in this sentence.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">5. Service Account</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer is responsible for all activity under its account. Customer will promptly notify Evo
+              Associates if Customer believes the account it uses to access the Services has been
+              compromised, or is subject to a denial of service or similar malicious attack that may negatively
+              impact the Services.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">5. Limitation of Liability</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">D. Confidentiality</h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Confidential Information</h3>
             <p className="text-muted-foreground leading-relaxed">
-              In no event shall we be liable for any damages (including, without limitation, damages for loss of data or profit, 
-              or due to business interruption) arising out of the use or inability to use the materials on our website.
+              The parties may share information that is identified as confidential, proprietary, or similar, or that
+              a party would reasonably understand to be confidential or proprietary (&quot;Confidential
+              Information&quot;). Customer Content is Customer&apos;s Confidential Information.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              2. Obligations of Parties
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              The receiving party (&quot;Recipient&quot;) may only use Confidential Information of the disclosing party
+              (&quot;Discloser&quot;) to exercise its rights and perform its obligations under these Terms. Recipient may
+              only share Discloser&apos;s Confidential Information to Recipient&apos;s employees, agents, and advisors
+              that have a need to know such Confidential Information and who are bound to obligations of
+              confidentiality at least as protective as those provided in these Terms (&quot;Representatives&quot;).
+              Recipient will protect Discloser&apos;s Confidential Information from unauthorized use, access, or
+              disclosure in the same manner as Recipient protects its own Confidential Information, and with
+              no less than reasonable care. Recipient is responsible for all acts and omissions of its
+              Representatives.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">3. Exclusions</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Confidential Information excludes information that: (a) becomes publicly available through no
+              fault of Recipient; (b) is obtained by Recipient from a third party without a breach of the third
+              party&apos;s obligations of confidentiality; or (c) is independently developed by Recipient without use
+              of Confidential Information. Recipient may disclose Discloser&apos;s Confidential Information to the
+              extent it is required by law, or court or administrative order, and will, except where expressly
+              prohibited, notify Discloser of the required disclosure promptly and fully cooperate with
+              Discloser&apos;s efforts to prevent or narrow the scope of disclosure.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">4. Destruction Request</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Recipient will destroy Discloser&apos;s Confidential Information promptly upon request, except where
+              retained to comply with law or copies in Recipient&apos;s automated back-up systems, which will
+              remain subject to these obligations of confidentiality while maintained.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">6. Revisions</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">E. Intellectual Property</h2>
             <p className="text-muted-foreground leading-relaxed">
-              We may revise these terms of use at any time without notice. By using this website you are agreeing to be bound 
-              by the then current version of these terms of use.
+              Except as expressly stated in these Terms, these Terms do not grant either party any rights to
+              the other&apos;s content or intellectual property, by implication or otherwise.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold text-foreground mb-3">7. Contact Information</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-3">F. Publicity</h2>
             <p className="text-muted-foreground leading-relaxed">
-              If you have any questions about these Terms of Use, please contact us at support@evoassociates.com
+              Evo Associates may use Customer&apos;s company name and logo to publicly identify Customer as a
+              customer of the Services; provided that Customer may opt-out by emailing mmorand@evoassociates.com.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">G. Fees</h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Payment of Fees</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer is responsible for fees incurred by its account, unless otherwise agreed by the parties.
+              Evo Associates may require prepayment for the Services Taxes. Fees do not include any taxes,
+              duties, or assessments that may be owed by Customer for use of the Services (&quot;Taxes&quot;), unless
+              otherwise specified in the applicable invoice. Customer is responsible for remitting any necessary
+              withholding Taxes to the relevant authority on a timely basis and providing Evo Associates with
+              evidence of the same upon request. Where law provides for the reduction or elimination of
+              withholding taxes, including via tax treaty, the parties will collaborate in good faith to do so.
+              Billing. Failure to pay Evo Associates all amounts owed when due may result in suspension or
+              termination of Customer&apos;s access to the Services. Evo Associates reserves any other rights of
+              collection it may have.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">
+              H. Termination and Suspension
+            </h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Term</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              These Terms start on the Effective Date and continue until terminated (the &quot;Term&quot;).
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">2. Termination</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Evo Associates may terminate these Terms immediately with Notice if Evo Associates reasonably
+              believes or determines that Evo Associates&apos; provision of the Services to Customer is prohibited
+              by applicable law.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">3. Suspension</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Evo Associates may suspend Customer&apos;s access to any portion or all of the Services if: (a) Evo
+              Associates reasonably believes or determines that (i) there is a risk to or attack on any of the
+              Services; (ii) Customer or any User is using the Services in violation of Sections D.1
+              (Compliance), D.2 (Policies and Service Terms) or D.4 (Use Restrictions); or (iii) Evo Associates&apos;
+              provision of the Services to Customer is prohibited by applicable law or would result in a material
+              increase in the cost of providing the Services; or (b) any vendor suspends or terminates Evo
+              Associates&apos; use of any third-party services or products required to enable Customer to access
+              the Services (each, a &quot;Service Suspension&quot;).
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              Evo Associates will use reasonable efforts to provide written notice of any Service Suspension to
+              Customer, and resume providing access to the Services, as soon as reasonably possible after the
+              event giving rise to the Service Suspension is cured, where curable. Evo Associates will have no
+              liability for any damage, liabilities, losses (including any loss of data or profits), or any other
+              consequences that Customer may incur because of a Service Suspension.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">4. Effect of Termination</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Upon termination, Customer may no longer access the Services. The following provisions will
+              survive termination or expiration of these Terms: (a) Sections E (Confidentiality), G (Publicity), H
+              (Fees), I (Termination and Suspension), J (Disputes), K (Indemnification), L.2 (Disclaimer of
+              Warranties), L.3 (Limits on Liability), and M (Miscellaneous); (b) any provision or condition that
+              must survive to fulfill its essential purpose.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">I. Disputes</h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Disputes</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              In the event of a dispute, claim or controversy relating to these Terms (&quot;Dispute&quot;), the parties will
+              first attempt in good faith to informally resolve the matter. The party raising the Dispute must notify
+              the other party (&quot;Dispute Notice&quot;). The other party will respond to the Dispute Notice in a timely
+              manner. If the parties have not resolved the dispute within 45 days of delivery of the Dispute
+              Notice, either party may seek to resolve the dispute through arbitration as stated in Section J.2
+              (Arbitration).
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">2. Arbitration</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Any Dispute will be determined in English by final, binding arbitration according to the
+              region-specific processes below. Judgment on any award issued through the arbitration process in
+              this Section J.2 (Arbitration) may be entered in any court having jurisdiction. EACH PARTY
+              AGREES THEY ARE WAIVING THE RIGHT TO A TRIAL BY JURY, AND THE RIGHT TO
+              JOIN AND PARTICIPATE IN A CLASS ACTION, TO THE FULLEST EXTENT PERMITTED
+              UNDER THE LAW IN CONNECTION WITH THESE TERMS.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              Disputes will be determined by a sole arbitrator in the Princeton, NJ area pursuant to the
+              Comprehensive Arbitration Rules and Procedures of Judicial Arbitration and Mediation Services,
+              Inc.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">3. Equitable Relief</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              This Section J (Disputes) does not limit either party from seeking equitable relief.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">J. Indemnification</h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Claims Against Customer</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Evo Associates will defend Customer and its personnel, successors, and assigns from and against
+              any Customer Claim (as defined below) and indemnify them for any judgment that a court of
+              competent jurisdiction grants a third party on such Customer Claim or that an arbitrator awards a
+              third party under any Evo Associates-approved settlement of such Customer Claim. &quot;Customer
+              Claim&quot; means a third-party claim, suit, or proceeding alleging that Customer&apos;s paid use of the
+              Services in accordance with these Terms or Outputs generated through such authorized use
+              violates any third-party intellectual property right.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              2. Claims Against Evo Associates
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer will defend Evo Associates and its personnel, successors, and assigns from and against
+              any Evo Associates Claim (as defined below) and indemnify them for any judgment that a court of
+              competent jurisdiction grants a third party on such Evo Associates Claim or that an arbitrator
+              awards a third party under any Customer-approved settlement of such Evo Associates Claim.
+              &quot;Evo Associates Claim&quot; means any third-party claim, suit, or proceeding related to Customer&apos;s or
+              its Users&apos; (a) Inputs or other data provided by Customer, or (b) use of the Services in violation of
+              the Usage Policy, the Service Specific Terms, or Section D.4 (Use Restrictions). Evo Associates
+              Claims and Customer Claims are each a &quot;Claim&quot;, as applicable.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">3. Exclusions</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Neither party&apos;s defense or indemnification obligations will apply to the extent the underlying
+              allegation arises from the indemnified party&apos;s fraud, willful misconduct, violations of law, or
+              breach of the Agreement. Additionally, Evo Associates&apos; defense and indemnification obligations
+              will not apply to the extent the Customer Claim arises from: (a) modifications made by Customer
+              to the Services or Outputs; (b) the combination of the Services or Outputs with technology or
+              content not provided by Evo Associates; (c) Inputs or other data provided by Customer; (d) use of
+              the Services or Outputs in a manner that Customer knows or reasonably should know violates or
+              infringes the rights of others; (e) the practice of a patented invention contained in an Output; or (f)
+              an alleged violation of trademark based on use of an Output in trade or commerce.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">4. Process</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              The indemnified party must promptly notify the indemnifying party of the relevant Claim, and will
+              reasonably cooperate in the defense. The indemnifying party will retain the right to control the
+              defense of any such Claim, including the selection of counsel, the strategy and course of any
+              litigation or appeals, and any negotiations or settlement or compromise, except that the indemnified
+              party will have the right, not to be exercised unreasonably, to reject any settlement or compromise
+              that requires that it admit wrongdoing or liability or subjects it to an ongoing affirmative obligation.
+              The indemnifying party&apos;s obligations will be excused if either of the following materially prejudices
+              the defense: (a) failure of the indemnified party to provide prompt notice of the Claim; or (b) failure
+              to reasonably cooperate in the defense.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">5. Sole Remedy</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              To the extent covered under this Section K (Indemnification), indemnification is each party&apos;s sole
+              and exclusive remedy under these Terms for any third-party claims.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">
+              K. Warranties and Limits on Liability
+            </h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Warranties</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Each party represents and warrants that (a) it is authorized to enter into these Terms; and (b)
+              entering into and performing these Terms will not violate any applicable organizational rules or
+              personal obligations, as applicable. Customer further represents and warrants that it has all rights
+              and permissions required to submit Inputs to the Services.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              2. Disclaimer of Warranties
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              EXCEPT TO THE EXTENT EXPRESSLY PROVIDED FOR IN THESE TERMS, TO THE
+              MAXIMUM EXTENT PERMITTED UNDER LAW (A) THE SERVICES AND OUTPUTS ARE
+              PROVIDED &quot;AS IS&quot; AND &quot;AS AVAILABLE&quot; WITHOUT WARRANTY OF ANY KIND; AND (B)
+              EVO ASSOCIATES MAKES NO WARRANTIES, EXPRESS OR IMPLIED, RELATING TO
+              THIRD-PARTY PRODUCTS OR SERVICES, INCLUDING THIRD-PARTY INTERFACES. EVO
+              ASSOCIATES EXPRESSLY DISCLAIMS ALL IMPLIED WARRANTIES, INCLUDING
+              WARRANTIES OF MERCHANTABILITY, NON-INFRINGEMENT, AND FITNESS FOR A
+              PARTICULAR PURPOSE, AS WELL AS ANY IMPLIED WARRANTY ARISING FROM
+              STATUTE, COURSE OF DEALING OR PERFORMANCE, OR TRADE USE. EVO
+              ASSOCIATES DOES NOT WARRANT, AND DISCLAIMS THAT, THE SERVICES OR
+              OUTPUTS ARE ACCURATE, COMPLETE OR ERROR-FREE OR THAT THEIR USE WILL BE
+              UNINTERRUPTED. REFERENCES TO A THIRD PARTY IN THE OUTPUTS MAY NOT MEAN
+              THEY ENDORSE OR ARE OTHERWISE WORKING WITH EVO ASSOCIATES.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">3. Limits on Liability</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Except as stated in Section L.3.b, the liability of each party, and its affiliates and licensors, for any
+              damages arising out of or related to these Terms (i) excludes damages that are consequential,
+              incidental, special, indirect, or exemplary damages, including lost profits, business, contracts,
+              revenue, goodwill, production, anticipated savings, or data, and costs of procurement of substitute
+              goods or services and (ii) is limited to Fees paid by Customer for the Services in the previous 12
+              months.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              The limitations of liability in this Section L.3 (Limits on Liability) do not apply to either party&apos;s
+              obligations under Section K (Indemnification).
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              THE LIMITATIONS OF LIABILITY IN THIS SECTION L.3 (LIMITS ON LIABILITY) APPLY: (I)
+              TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW; (II) TO LIABILITY IN
+              TORT, INCLUDING FOR NEGLIGENCE; (III) REGARDLESS OF THE FORM OF ACTION,
+              WHETHER IN CONTRACT, TORT, STRICT PRODUCT LIABILITY, OR OTHERWISE; (IV)
+              EVEN IF THE BREACHING PARTY IS ADVISED IN ADVANCE OF THE POSSIBILITY OF
+              THE DAMAGES IN QUESTION AND EVEN IF SUCH DAMAGES WERE FORESEEABLE;
+              AND (E) EVEN IF THE INJURED PARTY&apos;S REMEDIES FAIL OF THEIR ESSENTIAL
+              PURPOSE.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              The parties agree that they have entered into these Terms in reliance on the terms of this Section
+              L.3 (Limits on Liability) and those terms form an essential basis of the bargain between the parties.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">L. Miscellaneous</h2>
+            <h3 className="text-lg font-semibold text-foreground mb-2">1. Notices</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              All notices, demands, waivers, and other communications under these Terms (each, a &quot;Notice&quot;)
+              must be in writing. Except for notices related to demands to arbitrate or where equitable relief is
+              sought, any Notices provided under these Terms may be delivered electronically to the address
+              provided to Evo Associates if to Customer; and to mmorand@evoassociates.com if to Evo
+              Associates. Notice is effective only: (a) upon receipt by the receiving party, and (b) if the party
+              giving the Notice has complied with all requirements of this Section M.1 (Notices).
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              2. Electronic Communications
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer agrees to receive electronic communications from Evo Associates based on Customer&apos;s
+              use of the Services and related to these Terms. Except where prohibited by applicable law,
+              electronic communications may be sent via email, through the Services or Customer&apos;s
+              management dashboard, or posted on Evo Associates&apos; website. Evo Associates may also provide
+              electronic communications via text or SMS about Customer&apos;s use of the Services or as Customer
+              otherwise requests from Evo Associates. If Customer wishes to stop receiving such messages,
+              Customer may request it from Evo Associates or respond to any such texts with &quot;STOP&quot;.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              3. Amendment and Modification
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Evo Associates may update these Terms at any time, to be effective 30 days after the updates are
+              posted by Evo Associates or Customer otherwise receives Notice, except that updates made in
+              response to changes to law or regulation take effect immediately upon posting or Notice. Changes
+              will not apply retroactively. No other amendment to or modification of these Terms is effective
+              unless it is in writing and signed by both parties. Failure to exercise or delay in exercising any
+              rights or remedies arising from these Terms does not and will not be construed as a waiver; and no
+              single or partial exercise of any right or remedy will preclude future exercise of such right or
+              remedy.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              4. Assignment and Delegation
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Neither party may assign its rights or delegate its obligations under these Terms without the other
+              party&apos;s prior written consent, except that Evo Associates may assign its rights and delegate its
+              obligations to an affiliate or as part of a sale of all or substantially all its business. Any purported
+              assignment or delegation is null and void except as permitted above. No permitted assignment or
+              delegation will relieve the contracting party or assignees of their obligations under these Terms.
+              These Terms will bind and inure to the benefit of the parties and their respective permitted
+              successors and assigns.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">5. Severability</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              If a provision of these Terms is invalid, illegal, or unenforceable in any jurisdiction, such invalidity,
+              illegality, or unenforceability will neither affect any other term or provision of these Terms nor
+              invalidate or render unenforceable such term or provision in any other jurisdiction. Upon such
+              determination that any term or other provision is invalid, illegal, or unenforceable, the parties will
+              negotiate in good faith to modify these Terms to reflect the parties&apos; original intent as closely as
+              possible.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">6. Interpretation</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              These Terms will be construed mutually, with neither party considered the drafter. Document and
+              section titles are provided for convenience and will not be interpreted. The phrases &quot;for example&quot;
+              or &quot;including&quot; or &quot;or&quot; are not limiting.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              7. Governing Law; Venue
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              These Terms are governed by and construed in accordance with the Governing Laws, without
+              giving effect to any choice of law provision. &quot;Governing Laws&quot; means the laws of the State of New
+              Jersey.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              Any suits, actions, or proceedings related to these Terms that are not required to be resolved via
+              arbitration pursuant to Section J (Disputes) will be instituted exclusively in the Venue, and each
+              party irrevocably submits to their exclusive jurisdiction. &quot;Venue&quot; means federal or state courts
+              located in the State of New Jersey.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              8. Export and Sanctions
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Customer may not export or provide access to the Services to persons or entities or into countries
+              or for uses where it is prohibited under U.S. or other applicable international law. Without limiting
+              the foregoing sentence, this restriction applies (a) to countries where export from the US or into
+              such country would be prohibited or illegal without first obtaining the appropriate license, and (b) to
+              persons, entities, or countries covered by U.S. sanctions.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">9. Integration</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              These Terms (including the Usage Policy, Privacy Policy and other documents or terms that are
+              incorporated by reference by these Terms) constitute the parties&apos; entire understanding as to the
+              Services&apos; provision and use. These Terms supersede all other understandings or agreements
+              between the parties regarding the Services.
+            </p>
+            <h3 className="text-lg font-semibold text-foreground mb-2">10. Force Majeure</h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Neither party will be liable for failure or delay in performance to the extent caused by circumstances
+              beyond its reasonable control.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-foreground mb-3">Usage Policy</h2>
+            <p className="text-muted-foreground leading-relaxed">
+              Our Usage Policy (also referred to as our &quot;Acceptable Use Policy&quot; or &quot;AUP&quot;) applies to anyone
+              who can submit inputs to Evo Associates&apos; products and/or services, including via any authorized
+              resellers or passthrough access, all of whom we refer to as &quot;users.&quot; The Usage Policy is intended
+              to help our users stay safe and promote the responsible use of our products and services.
+            </p>
+            <p className="text-muted-foreground leading-relaxed">
+              We will update our policy as our technology and the associated risks evolve or as we learn about
+              unanticipated risks. Evo Associates will implement detection and monitoring to enforce our Usage
+              Policy, so please review this policy carefully before using our products or services. If we learn that
+              you have violated our Usage Policy, we may throttle, suspend, or terminate your access to our
+              products and services. We may also block or modify model outputs when inputs violate our Usage
+              Policy. If you believe that our model outputs are potentially inaccurate, biased or harmful, please
+              notify us at mmorand@evoassociates.com.
             </p>
           </section>
         </div>
@@ -76,8 +486,8 @@ export default function TermsOfUse() {
         {/* Footer */}
         <div className="mt-12 pt-8 border-t border-border">
           <div className="flex justify-end">
-            <a 
-              href="/privacy-policy" 
+            <a
+              href="/privacy-policy"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-primary hover:text-primary/80 transition-colors"
